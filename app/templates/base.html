@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}CropFlow - Optimal Irrigation Scheduling{% endblock %}</title>
+
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+
+    <!-- Bootstrap 5.3.3 CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Bootstrap Icons -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+
+    <!-- CropFlow Custom Agriculture Theme CSS -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    {% block extra_head %}{% endblock %}
+</head>
+<body class="cropflow-body">
+
+    <!-- Wrapper for Sidebar + Main Content Layout -->
+    <div class="cropflow-wrapper">
+
+        <!-- Agriculture Sidebar Navigation -->
+        <aside class="cropflow-sidebar" id="sidebarMenu">
+            <div class="sidebar-brand-wrapper d-flex align-items-center justify-content-between p-3 border-bottom border-sidebar">
+                <a class="sidebar-brand d-flex align-items-center gap-2 text-decoration-none" href="{{ url_for('dashboard.home') }}">
+                    <div class="brand-icon-box d-flex align-items-center justify-content-center">
+                        <i class="bi bi-droplet-half text-emerald fs-4"></i>
+                    </div>
+                    <div>
+                        <span class="fs-5 fw-bold text-white tracking-tight">Crop<span class="text-emerald-light">Flow</span></span>
+                        <div class="brand-subtitle text-muted-sidebar">Irrigation AI</div>
+                    </div>
+                </a>
+                <button class="btn btn-sm btn-link text-white d-lg-none p-0" type="button" id="sidebarCloseBtn" aria-label="Close Sidebar">
+                    <i class="bi bi-x-lg fs-5"></i>
+                </button>
+            </div>
+
+            <!-- Agricultural Status Banner -->
+            <div class="sidebar-status-card m-3 p-2 rounded-3">
+                <div class="d-flex align-items-center justify-content-between small">
+                    <span class="d-flex align-items-center gap-2 text-sidebar-status">
+                        <span class="status-indicator-dot online"></span>
+                        <span class="fw-semibold">Optimizers Ready</span>
+                    </span>
+                    <span class="badge bg-emerald-subtle text-emerald font-mono fs-xs">v1.0</span>
+                </div>
+            </div>
+
+            <!-- Navigation Links -->
+            <div class="sidebar-nav-container px-2 py-1">
+                <div class="sidebar-section-header px-3 text-uppercase font-mono fs-xs text-muted-sidebar mb-2">{{ t('nav_operations') }}</div>
+                <ul class="nav flex-column gap-1 mb-3">
+                    <li class="nav-item">
+                        <a class="nav-link sidebar-link {% if request.path == '/dashboard' %}active{% endif %}" href="{{ url_for('dashboard.view_dashboard') }}">
+                            <i class="bi bi-speedometer2"></i>
+                            <span>{{ t('nav_dashboard') }}</span>
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link sidebar-link {% if request.path == '/farms' %}active{% endif %}" href="{{ url_for('farms.view_farms') }}">
+                            <i class="bi bi-grid-3x3-gap"></i>
+                            <span>{{ t('nav_farms') }}</span>
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link sidebar-link {% if request.path == '/results' %}active{% endif %}" href="{{ url_for('reports.view_results') }}">
+                            <i class="bi bi-bar-chart-steps"></i>
+                            <span>{{ t('nav_results') }}</span>
+                        </a>
+                    </li>
+                </ul>
+
+                <div class="sidebar-section-header px-3 text-uppercase font-mono fs-xs text-muted-sidebar mb-2">{{ t('nav_architecture') }}</div>
+                <ul class="nav flex-column gap-1 mb-3">
+                    <li class="nav-item">
+                        <a class="nav-link sidebar-link {% if request.path == '/' %}active{% endif %}" href="{{ url_for('dashboard.home') }}">
+                            <i class="bi bi-diagram-3"></i>
+                            <span>{{ t('nav_overview') }}</span>
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link sidebar-link {% if request.endpoint == 'dashboard.view_health' or request.path.startswith('/system/health') %}active{% endif %}" href="{{ url_for('dashboard.view_health') }}">
+                            <i class="bi bi-activity"></i>
+                            <span>{{ t('nav_health') }}</span>
+                            <span class="badge bg-success-subtle text-success font-mono fs-xs ms-auto">LIVE</span>
+                        </a>
+                    </li>
+                </ul>
+            </div>
+
+            <!-- Sidebar Footer with Agricultural Algorithms -->
+            <div class="sidebar-footer mt-auto p-3 border-top border-sidebar">
+                <div class="d-flex align-items-center gap-2 mb-2">
+                    <i class="bi bi-cpu text-emerald"></i>
+                    <span class="fs-xs fw-semibold text-white">Active Algorithms</span>
+                </div>
+                <div class="d-flex flex-wrap gap-1 font-mono fs-xs">
+                    <span class="badge badge-greedy-pill">Greedy</span>
+                    <span class="badge badge-dp-pill">Dyn Prog</span>
+                    <span class="badge badge-hybrid-pill">Hybrid</span>
+                </div>
+                <div class="mt-2 text-muted-sidebar fs-xs">
+                    Limited Water Allocation Engine
+                </div>
+            </div>
+        </aside>
+
+        <!-- Main Content Area -->
+        <div class="cropflow-main">
+
+            <!-- Top Responsive Header Bar -->
+            <header class="cropflow-topbar bg-white border-bottom sticky-top px-3 px-lg-4 py-2 d-flex align-items-center justify-content-between">
+                <div class="d-flex align-items-center gap-2">
+                    <!-- Mobile Sidebar Toggle Button -->
+                    <button class="btn btn-sm btn-outline-secondary d-lg-none me-2" type="button" id="sidebarToggleBtn" aria-label="Toggle Sidebar">
+                        <i class="bi bi-list fs-5"></i>
+                    </button>
+                    <div>
+                        <nav aria-label="breadcrumb">
+                            <ol class="breadcrumb mb-0 small">
+                                <li class="breadcrumb-item"><a href="{{ url_for('dashboard.home') }}" class="text-decoration-none text-emerald fw-semibold">CropFlow</a></li>
+                                <li class="breadcrumb-item active text-dark" aria-current="page">{% block page_title %}{{ t('nav_dashboard') }}{% endblock %}</li>
+                            </ol>
+                        </nav>
+                    </div>
+                </div>
+
+                <!-- Top Right Actions -->
+                <div class="d-flex align-items-center gap-2">
+                    <!-- Language Selector Dropdown -->
+                    <div class="dropdown">
+                        <button class="btn btn-sm btn-outline-success dropdown-toggle rounded-pill px-3 py-1 font-mono fs-xs d-flex align-items-center gap-1 shadow-sm" type="button" data-bs-toggle="dropdown" aria-expanded="false">
+                            <i class="bi bi-translate text-emerald"></i>
+                            <span class="fw-semibold">
+                                {% if current_lang == 'mr' %}मराठी (MR){% elif current_lang == 'zh' %}中文 (ZH){% else %}English (EN){% endif %}
+                            </span>
+                        </button>
+                        <ul class="dropdown-menu dropdown-menu-end shadow-sm">
+                            <li><a class="dropdown-item d-flex align-items-center gap-2 {% if current_lang == 'en' %}active fw-bold{% endif %}" href="/set-language/en"><span class="badge bg-secondary-subtle text-dark">🇬🇧</span> English</a></li>
+                            <li><a class="dropdown-item d-flex align-items-center gap-2 {% if current_lang == 'mr' %}active fw-bold{% endif %}" href="/set-language/mr"><span class="badge bg-secondary-subtle text-dark">🇮🇳</span> मराठी (Marathi)</a></li>
+                            <li><a class="dropdown-item d-flex align-items-center gap-2 {% if current_lang == 'zh' %}active fw-bold{% endif %}" href="/set-language/zh"><span class="badge bg-secondary-subtle text-dark">🇨🇳</span> 中文 (Chinese)</a></li>
+                        </ul>
+                    </div>
+
+                    <span class="badge bg-light text-secondary border d-none d-md-inline-flex align-items-center gap-1 font-mono fs-xs px-2 py-1">
+                        <span class="status-indicator-dot online"></span> SQLite {{ t('connected') }}
+                    </span>
+                    <a href="{{ url_for('farms.view_farms') }}" class="btn btn-sm btn-emerald rounded-pill px-3 fw-semibold">
+                        <i class="bi bi-plus-lg me-1"></i> {{ t('btn_add_plot') }}
+                    </a>
+                </div>
+            </header>
+
+            <!-- Dynamic Alert / Toast Banner Container -->
+            <div id="dynamicAlertContainer" class="px-3 px-lg-4 pt-3 d-none"></div>
+
+            <!-- Page Body Content -->
+            <main class="cropflow-content p-3 p-lg-4">
+                {% block content %}{% endblock %}
+            </main>
+
+            <!-- Footer -->
+            <footer class="bg-white border-top py-3 px-3 px-lg-4 mt-auto">
+                <div class="row align-items-center gy-2">
+                    <div class="col-md-6 text-center text-md-start">
+                        <span class="text-muted small">&copy; 2026 <strong>CropFlow</strong> &bull; Optimal Irrigation Scheduling with Limited Water</span>
+                    </div>
+                    <div class="col-md-6 text-center text-md-end">
+                        <span class="text-muted small">Modular Architecture &bull; Greedy &bull; Dynamic Programming &bull; Hybrid Refinement</span>
+                    </div>
+                </div>
+            </footer>
+        </div>
+
+    </div>
+
+    <!-- Bootstrap 5.3.3 Bundle JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+
+    <!-- Sidebar Mobile Toggle Script -->
+    <script>
+        document.addEventListener("DOMContentLoaded", function() {
+            const toggleBtn = document.getElementById("sidebarToggleBtn");
+            const closeBtn = document.getElementById("sidebarCloseBtn");
+            const sidebar = document.getElementById("sidebarMenu");
+
+            if (toggleBtn && sidebar) {
+                toggleBtn.addEventListener("click", function() {
+                    sidebar.classList.toggle("show");
+                });
+            }
+            if (closeBtn && sidebar) {
+                closeBtn.addEventListener("click", function() {
+                    sidebar.classList.remove("show");
+                });
+            }
+        });
+    </script>
+    <!-- CropFlow Internationalization JS -->
+    <script src="{{ url_for('static', filename='js/i18n.js') }}"></script>
+    {% block extra_scripts %}{% endblock %}
+</body>
+</html>

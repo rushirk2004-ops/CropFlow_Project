@@ -1,0 +1,205 @@
+{% extends "base.html" %}
+
+{% block title %}CropFlow - {{ t('health_title') }}{% endblock %}
+{% block page_title %}{{ t('health_title') }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-0">
+
+    <!-- Header & Health Status Banner -->
+    <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3 mb-4">
+        <div>
+            <div class="d-flex align-items-center gap-2">
+                <h3 class="fw-bold text-dark mb-0">{{ t('health_title') }}</h3>
+                <span class="badge bg-success-subtle text-success border border-success-subtle rounded-pill font-mono fs-xs px-2 py-1">
+                    <span class="status-indicator-dot online me-1"></span> {{ t('sys_status_healthy') }}
+                </span>
+            </div>
+            <p class="text-muted small mb-0 mt-1">
+                {{ t('health_subtitle') }}
+            </p>
+        </div>
+
+        <div class="d-flex flex-wrap align-items-center gap-2">
+            <a href="{{ url_for('dashboard.health_check', format='json') }}" target="_blank" class="btn btn-sm btn-outline-dark rounded-pill px-3 shadow-sm font-mono">
+                <i class="bi bi-braces me-1"></i> {{ t('raw_json_api') }}
+            </a>
+            <a href="{{ url_for('dashboard.view_dashboard') }}" class="btn btn-sm btn-emerald rounded-pill px-3 shadow-sm">
+                <i class="bi bi-speedometer2 me-1"></i> {{ t('nav_dashboard') }}
+            </a>
+        </div>
+    </div>
+
+    <!-- Core Service Telemetry KPI Cards -->
+    <div class="row g-3 mb-4">
+        <!-- Telemetry 1: Overall System Status -->
+        <div class="col-sm-6 col-xl-3">
+            <div class="card p-3 h-100 shadow-sm border-0 border-start border-4 border-success">
+                <div class="d-flex justify-content-between align-items-start">
+                    <div>
+                        <span class="text-muted fs-xs text-uppercase fw-bold font-mono">System Engine</span>
+                        <h4 class="fw-bold text-success mt-1 mb-0">{{ status|capitalize }}</h4>
+                    </div>
+                    <div class="kpi-icon-badge bg-success-subtle text-success">
+                        <i class="bi bi-heart-pulse-fill"></i>
+                    </div>
+                </div>
+                <div class="mt-2 text-muted fs-xs font-mono">
+                    Service: <strong>CropFlow v1.0.0</strong>
+                </div>
+            </div>
+        </div>
+
+        <!-- Telemetry 2: Database Connectivity -->
+        <div class="col-sm-6 col-xl-3">
+            <div class="card p-3 h-100 shadow-sm border-0 border-start border-4 border-primary">
+                <div class="d-flex justify-content-between align-items-start">
+                    <div>
+                        <span class="text-muted fs-xs text-uppercase fw-bold font-mono">Database Status</span>
+                        <h4 class="fw-bold text-primary mt-1 mb-0">{{ db_status|capitalize }}</h4>
+                    </div>
+                    <div class="kpi-icon-badge bg-primary-subtle text-primary">
+                        <i class="bi bi-database-fill-check"></i>
+                    </div>
+                </div>
+                <div class="mt-2 text-muted fs-xs">
+                    {{ t('db_connected') }}
+                </div>
+            </div>
+        </div>
+
+        <!-- Telemetry 3: Registered Farms -->
+        <div class="col-sm-6 col-xl-3">
+            <div class="card p-3 h-100 shadow-sm border-0 border-start border-4 border-info">
+                <div class="d-flex justify-content-between align-items-start">
+                    <div>
+                        <span class="text-muted fs-xs text-uppercase fw-bold font-mono">{{ t('farms_count_label') }}</span>
+                        <h4 class="fw-bold text-dark mt-1 mb-0 font-mono">{{ farms_count }}</h4>
+                    </div>
+                    <div class="kpi-icon-badge bg-info-subtle text-info">
+                        <i class="bi bi-houses-fill"></i>
+                    </div>
+                </div>
+                <div class="mt-2 text-muted fs-xs">
+                    Aggregated farm entities in SQLite
+                </div>
+            </div>
+        </div>
+
+        <!-- Telemetry 4: Managed Agricultural Plots -->
+        <div class="col-sm-6 col-xl-3">
+            <div class="card p-3 h-100 shadow-sm border-0 border-start border-4 border-warning">
+                <div class="d-flex justify-content-between align-items-start">
+                    <div>
+                        <span class="text-muted fs-xs text-uppercase fw-bold font-mono">{{ t('plots_count_label') }}</span>
+                        <h4 class="fw-bold text-dark mt-1 mb-0 font-mono">{{ plots_count }}</h4>
+                    </div>
+                    <div class="kpi-icon-badge bg-warning-subtle text-warning">
+                        <i class="bi bi-grid-3x3-gap-fill"></i>
+                    </div>
+                </div>
+                <div class="mt-2 text-muted fs-xs">
+                    Active plots under water optimization
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Optimization Algorithms Architecture Cards (Greedy, DP, Hybrid) -->
+    <div class="card border-0 shadow-sm p-4 mb-4">
+        <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-2 mb-3">
+            <div>
+                <h5 class="fw-bold text-dark mb-1 d-flex align-items-center gap-2">
+                    <i class="bi bi-cpu-fill text-emerald"></i>
+                    {{ t('algorithms_spec') }}
+                </h5>
+                <p class="text-muted small mb-0">Decoupled optimization engines in <code>app/algorithms/</code> with proven mathematical bounds</p>
+            </div>
+            <span class="badge bg-light text-secondary border font-mono fs-xs">UTC: {{ timestamp_utc }}</span>
+        </div>
+
+        <div class="row g-3">
+            {% for alg in algorithms %}
+            <div class="col-lg-4">
+                <div class="card p-3 h-100 shadow-sm border-top border-4" style="border-top-color: {{ alg.accent }} !important;">
+                    <div class="d-flex justify-content-between align-items-start mb-2">
+                        <div>
+                            <span class="badge {{ alg.badge }} px-2 py-1 rounded fs-xs">{{ t(alg.name_key) }}</span>
+                            <div class="fw-bold text-dark font-mono fs-5 mt-2">{{ alg.complexity }}</div>
+                        </div>
+                        {% if alg.is_proposed %}
+                        <span class="badge bg-emerald text-white font-mono fs-xs">{{ t('proposed_tag') }}</span>
+                        {% else %}
+                        <span class="badge bg-light text-muted border font-mono fs-xs">Engine</span>
+                        {% endif %}
+                    </div>
+
+                    <div class="mt-2 pt-2 border-top">
+                        <div class="small mb-2">
+                            <span class="text-muted fw-semibold d-block fs-xs">{{ t('math_role_label') }}:</span>
+                            <span class="text-dark">{{ t(alg.role_key) }}</span>
+                        </div>
+                        <div class="d-flex justify-content-between align-items-center text-muted font-mono fs-xs mt-3 bg-light p-2 rounded">
+                            <span>Space: <strong>{{ alg.space }}</strong></span>
+                            <span>ID: <code>{{ alg.id }}</code></span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+
+    <!-- Mathematical Complexity & Proof Summary -->
+    <div class="card border-0 shadow-sm p-4 mb-4">
+        <h5 class="fw-bold text-dark mb-3 d-flex align-items-center gap-2">
+            <i class="bi bi-mortarboard-fill text-primary"></i>
+            Mathematical Parameter Definitions & Formal Bounds
+        </h5>
+
+        <div class="row g-3 small text-secondary">
+            <div class="col-md-4">
+                <div class="p-3 rounded bg-light border h-100">
+                    <h6 class="fw-bold text-dark">1. Dynamic Programming \(O(N \cdot M \cdot K)\)</h6>
+                    <p class="mb-2">
+                        &bull; <strong>\(N\)</strong> = Number of agricultural plots.<br>
+                        &bull; <strong>\(M\)</strong> = Discretized water capacity units: \(M = \lfloor W_{\text{available}} / \Delta w \rfloor\).<br>
+                        &bull; <strong>\(K\)</strong> = Feasible discrete allocation levels: \(K = \lceil D_{\max} / \Delta w \rceil\).
+                    </p>
+                    <p class="mb-0 text-muted fs-xs">
+                        Guarantees Bellman optimality across the discrete resource lattice with concave FAO-33 yield response curves.
+                    </p>
+                </div>
+            </div>
+
+            <div class="col-md-4">
+                <div class="p-3 rounded bg-light border h-100">
+                    <h6 class="fw-bold text-dark">2. Hybrid Strategy \(O(N \log N + N \cdot M' \cdot K)\)</h6>
+                    <p class="mb-2">
+                        &bull; <strong>\(N \log N\)</strong> = Greedy priority score sorting.<br>
+                        &bull; <strong>\(M'\)</strong> = Residual water capacity after reserving vital survival anchors (\(M' \ll M\)).<br>
+                        &bull; <strong>\(N \cdot M' \cdot K\)</strong> = DP optimization over reduced residual space.
+                    </p>
+                    <p class="mb-0 text-muted fs-xs">
+                        Combines zero-starvation safety anchors for vulnerable flowering crops with exact DP yield maximization.
+                    </p>
+                </div>
+            </div>
+
+            <div class="col-md-4">
+                <div class="p-3 rounded bg-light border h-100">
+                    <h6 class="fw-bold text-dark">3. Greedy Allocation \(O(N \log N)\)</h6>
+                    <p class="mb-2">
+                        &bull; <strong>\(N \log N\)</strong> = Priority queue triage sorting.<br>
+                        &bull; <strong>Priority Metric</strong>: Incorporates FAO-33 sensitivity factor \(K_y\), soil moisture deficit, and economic value.
+                    </p>
+                    <p class="mb-0 text-muted fs-xs">
+                        Near-instantaneous execution suitable for high-frequency embedded controllers and real-time alerts.
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+</div>
+{% endblock %}

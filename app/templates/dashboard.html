@@ -1,0 +1,530 @@
+{% extends "base.html" %}
+
+{% block title %}{{ t('app_title') }}{% endblock %}
+{% block page_title %}{{ t('page_operational_dashboard') }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-0">
+
+    {% if not farm or not farm.plots %}
+    <!-- Empty State: No Farms or No Plots -->
+    <div class="card border-0 shadow-sm p-5 text-center my-4">
+        <div class="empty-state-icon">
+            <i class="bi bi-tree"></i>
+        </div>
+        <h4 class="fw-bold text-dark mb-2">{{ t('no_plots_configured') }}</h4>
+        <p class="text-muted mx-auto" style="max-width: 480px;">
+            {{ t('no_plots_desc') }}
+        </p>
+        <div class="d-flex justify-content-center gap-2 mt-3">
+            <a href="{{ url_for('farms.view_farms') }}" class="btn btn-emerald rounded-pill px-4">
+                <i class="bi bi-plus-circle me-1"></i> {{ t('btn_add_plot') }}
+            </a>
+            <a href="{{ url_for('dashboard.view_dashboard') }}" class="btn btn-outline-secondary rounded-pill px-4">
+                <i class="bi bi-arrow-clockwise me-1"></i> {{ t('btn_reset_farm') }}
+            </a>
+        </div>
+    </div>
+    {% else %}
+
+    <!-- Top Dashboard Header with Farm Selector & "Run All 3 Algorithms" Action -->
+    <div class="d-flex flex-column flex-xl-row justify-content-between align-items-xl-center gap-3 mb-4">
+        <div>
+            <div class="d-flex align-items-center gap-2">
+                <h3 class="fw-bold text-dark mb-0">{{ t('page_dashboard_title') }}</h3>
+                <span class="badge bg-emerald-subtle text-emerald rounded-pill font-mono fs-xs px-2 py-1">
+                    <span class="status-indicator-dot online me-1"></span> {{ t('live_solver') }}
+                </span>
+            </div>
+            <p class="text-muted small mb-0 mt-1">
+                {{ t('active_farm') }}: <strong>{{ farm.name }}</strong> &bull; {{ t('location') }}: {{ farm.location }} &bull; {{ t('area') }}: {{ farm.total_area }} ha &bull; {{ t('reservoir') }}: {{ farm.reservoir_capacity }} m³
+            </p>
+        </div>
+
+        <div class="d-flex flex-wrap align-items-center gap-2">
+            <!-- Farm Selector Dropdown -->
+            <form method="GET" action="{{ url_for('dashboard.view_dashboard') }}" class="d-inline-flex align-items-center">
+                <select name="farm_id" class="form-select form-select-sm shadow-sm font-mono" onchange="this.form.submit()">
+                    {% for f in farms %}
+                    <option value="{{ f.id }}" {% if f.id == farm.id %}selected{% endif %}>
+                        {{ f.name }} ({{ t('budget') }}: {{ f.water_budget }} m³)
+                    </option>
+                    {% endfor %}
+                </select>
+            </form>
+
+            <!-- Prominent "Run All 3 Algorithms" Button -->
+            <button type="button" id="runAllAlgorithmsBtn" class="btn btn-sm btn-emerald rounded-pill px-3 shadow-sm d-flex align-items-center gap-2" onclick="runAllAlgorithms()">
+                <i class="bi bi-lightning-charge-fill"></i>
+                <span id="runAllBtnText">{{ t('btn_run_all') }}</span>
+            </button>
+
+            <!-- Full Results & Audits Link -->
+            <a href="{{ url_for('reports.view_results', farm_id=farm.id) }}" class="btn btn-sm btn-outline-secondary rounded-pill px-3">
+                <i class="bi bi-file-earmark-bar-graph me-1"></i> {{ t('full_report') }}
+            </a>
+        </div>
+    </div>
+
+    <!-- Active Algorithm Selection Pill Tabs -->
+    {% set active_result = comparison.results['hybrid'] %}
+    {% set greedy_res = comparison.results['greedy'] %}
+    {% set dp_res = comparison.results['dynamic_programming'] %}
+
+    <!-- KPI Summary Cards Row (Features 1-4) -->
+    <div class="row g-3 mb-4">
+        <!-- KPI 1: Available Water vs Total Crop Demand -->
+        <div class="col-sm-6 col-xl-3">
+            <div class="card kpi-card border-accent-water p-3 h-100">
+                <div class="d-flex justify-content-between align-items-start">
+                    <div>
+                        <span class="text-muted fs-xs text-uppercase fw-bold font-mono">{{ t('kpi_available_water') }}</span>
+                        <h3 class="fw-bold text-dark mt-1 mb-0" id="kpiAvailableWater">
+                            {{ farm.water_budget }} <span class="fs-6 fw-normal text-muted">/ {{ farm.total_demand }} m³</span>
+                        </h3>
+                    </div>
+                    <div class="kpi-icon-badge bg-info-subtle text-info">
+                        <i class="bi bi-droplet-half"></i>
+                    </div>
+                </div>
+                <div class="mt-2 small" id="kpiWaterBalance">
+                    {% if farm.water_balance < 0 %}
+                    <span class="text-danger fw-semibold">
+                        <i class="bi bi-exclamation-triangle-fill me-1"></i> {{ t('deficit') }}: {{ farm.water_balance|abs }} m³
+                    </span>
+                    {% else %}
+                    <span class="text-success fw-semibold">
+                        <i class="bi bi-check-circle-fill me-1"></i> {{ t('surplus') }}: +{{ farm.water_balance }} m³
+                    </span>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- KPI 2: Allocated Water & Unmet Demand -->
+        <div class="col-sm-6 col-xl-3">
+            <div class="card kpi-card border-accent-allocated p-3 h-100">
+                <div class="d-flex justify-content-between align-items-start">
+                    <div>
+                        <span class="text-muted fs-xs text-uppercase fw-bold font-mono">{{ t('kpi_allocated_water') }}</span>
+                        <h3 class="fw-bold text-emerald mt-1 mb-0" id="kpiAllocatedWater">
+                            {{ active_result.total_allocated }} <span class="fs-6 fw-normal text-muted">m³</span>
+                        </h3>
+                    </div>
+                    <div class="kpi-icon-badge bg-emerald-subtle text-emerald">
+                        <i class="bi bi-water"></i>
+                    </div>
+                </div>
+                <div class="mt-2 small text-muted d-flex justify-content-between align-items-center" id="kpiUnmetDemandWrapper">
+                    <span>{{ t('unmet') }}: <strong class="text-danger font-mono" id="kpiUnmetDemand">{{ active_result.unmet_demand }} m³</strong></span>
+                    <span class="badge bg-light text-dark border font-mono fs-xs" id="kpiCoverageBadge">
+                        {{ ((active_result.total_allocated / farm.total_demand * 100.0) if farm.total_demand > 0 else 100)|round(1) }}% {{ t('coverage') }}
+                    </span>
+                </div>
+            </div>
+        </div>
+
+        <!-- KPI 3: Water Utilization Percentage -->
+        <div class="col-sm-6 col-xl-3">
+            <div class="card kpi-card border-accent-demand p-3 h-100">
+                <div class="d-flex justify-content-between align-items-start">
+                    <div>
+                        <span class="text-muted fs-xs text-uppercase fw-bold font-mono">{{ t('kpi_water_utilization') }}</span>
+                        <h3 class="fw-bold text-warning mt-1 mb-0" id="kpiUtilization">
+                            {{ active_result.water_utilization_pct }}%
+                        </h3>
+                    </div>
+                    <div class="kpi-icon-badge bg-warning-subtle text-warning">
+                        <i class="bi bi-pie-chart-fill"></i>
+                    </div>
+                </div>
+                <div class="mt-2">
+                    <div class="progress progress-thin">
+                        <div id="kpiUtilizationBar" class="progress-bar bg-warning" role="progressbar" style="width: {{ active_result.water_utilization_pct }}%"></div>
+                    </div>
+                    <div class="d-flex justify-content-between text-muted fs-xs font-mono mt-1">
+                        <span>{{ t('pumping') }}: {{ farm.pump_capacity }} m³/h</span>
+                        <span>{{ t('jain_eq') }}: <strong class="text-dark" id="kpiFairness">{{ active_result.fairness_index }}</strong></span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- KPI 4: Estimated Irrigation Cost & Net Return -->
+        <div class="col-sm-6 col-xl-3">
+            <div class="card kpi-card border-accent-cost p-3 h-100">
+                <div class="d-flex justify-content-between align-items-start">
+                    <div>
+                        <span class="text-muted fs-xs text-uppercase fw-bold font-mono">{{ t('kpi_estimated_cost') }}</span>
+                        <h3 class="fw-bold text-purple mt-1 mb-0" style="color: #8b5cf6;" id="kpiTotalCost">
+                            ₹{{ "{:,.2f}".format(active_result.total_cost) }}
+                        </h3>
+                    </div>
+                    <div class="kpi-icon-badge" style="background-color: #f3e8ff; color: #8b5cf6;">
+                        <i class="bi bi-cash-stack"></i>
+                    </div>
+                </div>
+                <div class="mt-2 small d-flex justify-content-between align-items-center">
+                    <span class="text-muted">{{ t('net_return_label') }}</span>
+                    <span class="fw-bold font-mono text-emerald" id="kpiNetReturn">₹{{ "{:,.2f}".format(active_result.net_return) }}</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Execution Time Benchmarking Cards (Feature 5) -->
+    <div class="card border-0 shadow-sm p-3 mb-4">
+        <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-2 mb-2 pb-2 border-bottom">
+            <div>
+                <h6 class="fw-bold text-dark mb-0 d-flex align-items-center gap-2">
+                    <i class="bi bi-stopwatch text-emerald"></i>
+                    {{ t('kpi_execution_times') }}
+                </h6>
+                <span class="text-muted fs-xs">{{ t('benchmark_subtitle') }}</span>
+            </div>
+            <div class="d-flex align-items-center gap-2">
+                <span class="badge bg-light text-secondary border font-mono fs-xs">Dataset: {{ farm.plots|length }} plots &bull; {{ farm.water_budget }} m³ {{ t('budget') }}</span>
+            </div>
+        </div>
+        <div class="row g-2 align-items-center">
+            <!-- Greedy Runtime -->
+            <div class="col-md-4">
+                <div class="p-2 rounded bg-light border d-flex justify-content-between align-items-center">
+                    <div>
+                        <span class="badge badge-greedy px-2 py-1">{{ t('alg_greedy') }}</span>
+                        <div class="text-muted fs-xs mt-1">{{ t('alg_greedy_desc') }}</div>
+                    </div>
+                    <div class="text-end">
+                        <span class="fs-5 fw-bold font-mono text-dark" id="runtimeGreedy">{{ greedy_res.execution_time_ms }}</span> <span class="fs-xs font-mono text-muted">ms</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- DP Runtime -->
+            <div class="col-md-4">
+                <div class="p-2 rounded bg-light border d-flex justify-content-between align-items-center">
+                    <div>
+                        <span class="badge badge-dp px-2 py-1">{{ t('alg_dp') }}</span>
+                        <div class="text-muted fs-xs mt-1">{{ t('alg_dp_desc') }}</div>
+                    </div>
+                    <div class="text-end">
+                        <span class="fs-5 fw-bold font-mono text-dark" id="runtimeDP">{{ dp_res.execution_time_ms }}</span> <span class="fs-xs font-mono text-muted">ms</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Hybrid Runtime -->
+            <div class="col-md-4">
+                <div class="p-2 rounded bg-emerald-subtle border border-success-subtle d-flex justify-content-between align-items-center">
+                    <div>
+                        <span class="badge badge-hybrid px-2 py-1">{{ t('alg_hybrid') }}</span>
+                        <div class="text-muted fs-xs mt-1">{{ t('alg_hybrid_desc') }} &bull; <span class="font-mono">{{ t('proposed_tag') }}</span></div>
+                    </div>
+                    <div class="text-end">
+                        <span class="fs-5 fw-bold font-mono text-emerald" id="runtimeHybrid">{{ active_result.execution_time_ms }}</span> <span class="fs-xs font-mono text-muted">ms</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Drought Scenario Selector (Feature 8) -->
+    <div class="card drought-simulator-card shadow-sm p-4 mb-4">
+        <div class="row align-items-center gy-3">
+            <div class="col-lg-4">
+                <div class="d-flex align-items-center gap-2 mb-1">
+                    <i class="bi bi-sliders text-emerald fs-5"></i>
+                    <h5 class="fw-bold text-dark mb-0">{{ t('sim_title') }}</h5>
+                </div>
+                <p class="text-muted small mb-0">
+                    {{ t('sim_desc') }}
+                </p>
+            </div>
+            <div class="col-lg-5">
+                <div class="d-flex justify-content-between small font-mono mb-1">
+                    <span class="text-danger fw-semibold">{{ t('sim_emergency') }}</span>
+                    <span id="sliderPctLabel" class="fw-bold text-dark">100% {{ t('supply') }} ({{ farm.water_budget }} m³)</span>
+                    <span class="text-emerald fw-semibold">{{ t('sim_normal') }}</span>
+                </div>
+                <input type="range" class="form-range" id="droughtSlider" min="10" max="100" step="5" value="100">
+            </div>
+            <div class="col-lg-3 text-lg-end">
+                <div class="btn-group btn-group-sm w-100 shadow-sm">
+                    <button type="button" class="btn btn-outline-secondary" onclick="setDroughtPreset(100)">100%</button>
+                    <button type="button" class="btn btn-outline-secondary" onclick="setDroughtPreset(75)">75%</button>
+                    <button type="button" class="btn btn-outline-warning" onclick="setDroughtPreset(50)">50%</button>
+                    <button type="button" class="btn btn-outline-danger" onclick="setDroughtPreset(25)">25%</button>
+                    <button type="button" class="btn btn-outline-dark" onclick="setDroughtPreset(10)">10%</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Charts Row 1: Plot Allocations Bar Chart & Multi-Metric Comparison (Features 6 & 7) -->
+    <div class="row g-3 mb-4">
+        <!-- Plot Allocations Bar Chart (Feature 6) -->
+        <div class="col-lg-7">
+            <div class="card p-3 h-100">
+                <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
+                    <div>
+                        <h6 class="fw-bold text-dark mb-0 d-flex align-items-center gap-2">
+                            <i class="bi bi-bar-chart-fill text-primary"></i>
+                            {{ t('plot_allocation_title') }}
+                        </h6>
+                        <span class="text-muted fs-xs">{{ t('plot_allocation_desc') }}</span>
+                    </div>
+                    <div class="btn-group btn-group-sm" role="group" id="strategyViewToggle">
+                        <button type="button" class="btn btn-emerald active btn-sm font-mono py-0" onclick="switchStrategyView('hybrid')">{{ t('strategy_hybrid') }}</button>
+                        <button type="button" class="btn btn-outline-secondary btn-sm font-mono py-0" onclick="switchStrategyView('dynamic_programming')">{{ t('strategy_dp') }}</button>
+                        <button type="button" class="btn btn-outline-secondary btn-sm font-mono py-0" onclick="switchStrategyView('greedy')">{{ t('strategy_greedy') }}</button>
+                    </div>
+                </div>
+                <div style="height: 300px; position: relative;">
+                    <canvas id="plotAllocationsChart"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <!-- Strategy Comparison Charts: Cost, Unmet Demand & Runtime (Feature 7) -->
+        <div class="col-lg-5">
+            <div class="card p-3 h-100">
+                <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
+                    <div>
+                        <h6 class="fw-bold text-dark mb-0 d-flex align-items-center gap-2" id="comparisonChartTitle">
+                            <i class="bi bi-graph-up-arrow text-emerald"></i>
+                            {{ t('strategy_comparison_title') }}
+                        </h6>
+                        <span class="text-muted fs-xs">{{ t('strategy_comparison_desc') }}</span>
+                    </div>
+                    <ul class="nav nav-pills nav-pills-sm font-mono fs-xs" id="comparisonMetricTabs">
+                        <li class="nav-item">
+                            <button class="nav-link active py-0 px-2" onclick="setComparisonMetric('costs')">{{ t('tab_cost') }}</button>
+                        </li>
+                        <li class="nav-item">
+                            <button class="nav-link py-0 px-2" onclick="setComparisonMetric('unmet')">{{ t('unmet') }}</button>
+                        </li>
+                        <li class="nav-item">
+                            <button class="nav-link py-0 px-2" onclick="setComparisonMetric('runtime')">{{ t('tab_runtime') }}</button>
+                        </li>
+                        <li class="nav-item">
+                            <button class="nav-link py-0 px-2" onclick="setComparisonMetric('yield')">{{ t('tab_yield') }}</button>
+                        </li>
+                    </ul>
+                </div>
+                <div style="height: 300px; position: relative;">
+                    <canvas id="strategyComparisonChart"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Charts Row 2: Drought Sensitivity Curves & Soil Moisture Profile -->
+    <div class="row g-3 mb-4">
+        <!-- Drought Stress Curves -->
+        <div class="col-lg-6">
+            <div class="card p-3 h-100">
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                    <h6 class="fw-bold text-dark mb-0 d-flex align-items-center gap-2">
+                        <i class="bi bi-activity text-warning"></i>
+                        {{ t('drought_curve_title') }}
+                    </h6>
+                    <span class="badge bg-light text-muted border fs-xs font-mono">{{ t('supply_range') }}</span>
+                </div>
+                <p class="text-muted fs-xs mb-2">{{ t('drought_curve_desc') }}</p>
+                <div style="height: 250px; position: relative;">
+                    <canvas id="droughtCurveChart"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <!-- Soil Moisture & Urgency Matrix -->
+        <div class="col-lg-6">
+            <div class="card p-3 h-100">
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                    <h6 class="fw-bold text-dark mb-0 d-flex align-items-center gap-2">
+                        <i class="bi bi-moisture text-info"></i>
+                        {{ t('soil_moisture_title') }}
+                    </h6>
+                    <span class="badge bg-light text-muted border fs-xs font-mono">{{ t('agronomic_limits') }}</span>
+                </div>
+                <p class="text-muted fs-xs mb-2">{{ t('soil_moisture_desc') }}</p>
+                <div style="height: 250px; position: relative;">
+                    <canvas id="soilMoistureChart"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Detailed Farm Plot Allocation Table (Feature 9) -->
+    <div class="card border-0 shadow-sm p-4 mb-4">
+        <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-2 mb-3">
+            <div>
+                <h5 class="fw-bold text-dark mb-0 d-flex align-items-center gap-2">
+                    <i class="bi bi-table text-emerald"></i>
+                    {{ t('detailed_table_title') }}
+                </h5>
+                <span class="text-muted small">{{ t('plot_eval_prefix') }} <span id="tableStrategyLabel" class="fw-semibold text-emerald">{{ t('strategy_hybrid') }}</span></span>
+            </div>
+            <div class="d-flex align-items-center gap-2">
+                <span class="badge bg-light text-secondary border font-mono">{{ t('total_budget') }}: <span id="tableBudgetLabel">{{ farm.water_budget }}</span> m³</span>
+                <a href="{{ url_for('farms.view_farms', farm_id=farm.id) }}" class="btn btn-sm btn-outline-secondary rounded-pill px-3">
+                    <i class="bi bi-pencil-square me-1"></i> {{ t('btn_edit_plots') }}
+            </div>
+        </div>
+
+        <div class="table-responsive">
+            <table class="table table-custom table-hover align-middle mb-0" id="plotsAllocationTable">
+                <thead>
+                    <tr>
+                        <th>{{ t('th_plot_id_name') }}</th>
+                        <th>{{ t('th_crop_stage') }}</th>
+                        <th>{{ t('th_soil_area') }}</th>
+                        <th>{{ t('th_moisture') }}</th>
+                        <th>{{ t('th_demand_m3') }}</th>
+                        <th>{{ t('th_allocated_m3') }}</th>
+                        <th>{{ t('th_unmet_m3') }}</th>
+                        <th>{{ t('th_coverage_pct') }}</th>
+                        <th>{{ t('th_yield_pct') }}</th>
+                        <th>{{ t('th_cost_rs') }}</th>
+                    </tr>
+                </thead>
+                <tbody id="plotsTableBody">
+                    {% for item in active_result.allocations %}
+                    {% set p = farm.plots[loop.index0] if loop.index0 < farm.plots|length else None %}
+                    <tr id="plot-row-{{ loop.index0 }}">
+                        <td>
+                            <div class="fw-bold text-dark">{{ item.plot_name }}</div>
+                            <span class="text-muted fs-xs font-mono">{{ p.plot_identifier if p else 'P-' ~ loop.index }}</span>
+                        </td>
+                        <td>
+                            <span class="badge bg-light text-dark border">{{ item.crop_type }}</span>
+                            <span class="badge {% if p and p.growth_stage == 'Flowering' %}bg-danger-subtle text-danger{% else %}bg-secondary-subtle text-secondary{% endif %} fs-xs">
+                                {{ p.growth_stage if p else 'Active' }}
+                            </span>
+                        </td>
+                        <td class="small">
+                            <div>{{ p.soil_type if p else 'Loamy' }}</div>
+                            <span class="text-muted fs-xs font-mono">{{ p.size_hectares if p else '1.0' }} ha</span>
+                        </td>
+                        <td>
+                            <div class="d-flex align-items-center gap-2" style="min-width: 100px;">
+                                <div class="progress flex-grow-1 progress-thin">
+                                    <div class="progress-bar {% if p and p.current_moisture < 30 %}bg-danger{% else %}bg-info{% endif %}"
+                                         style="width: {{ p.current_moisture if p else 50 }}%"></div>
+                                </div>
+                                <span class="font-mono fs-xs">{{ p.current_moisture if p else 50 }}%</span>
+                            </div>
+                        </td>
+                        <td class="font-mono fw-semibold text-dark">{{ item.demand }} m³</td>
+                        <td class="font-mono fw-bold text-emerald cell-allocated">{{ item.allocated_water }} m³</td>
+                        <td class="font-mono fw-semibold cell-unmet {% if item.unmet_demand > 0 %}text-danger{% else %}text-muted{% endif %}">
+                            {{ item.unmet_demand }} m³
+                        </td>
+                        <td style="min-width: 130px;" class="cell-coverage">
+                            <div class="d-flex align-items-center gap-2">
+                                <div class="progress flex-grow-1 progress-thin">
+                                    <div class="progress-bar {% if item.coverage_pct >= 90 %}bg-success{% elif item.coverage_pct >= 50 %}bg-info{% elif item.coverage_pct > 0 %}bg-warning{% else %}bg-danger{% endif %}"
+                                         style="width: {{ item.coverage_pct }}%"></div>
+                                </div>
+                                <span class="font-mono fs-xs">{{ item.coverage_pct }}%</span>
+                            </div>
+                        </td>
+                        <td class="font-mono fw-semibold cell-yield {% if item.yield_preservation_pct >= 85 %}text-success{% else %}text-secondary{% endif %}">
+                            {{ item.yield_preservation_pct }}%
+                        </td>
+                        <td class="font-mono text-muted cell-cost">₹{{ "{:,.2f}".format(item.cost) }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Results History View (Feature 11) -->
+    <div class="card border-0 shadow-sm p-4">
+        <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-2 mb-3">
+            <div>
+                <h5 class="fw-bold text-dark mb-0 d-flex align-items-center gap-2">
+                    <i class="bi bi-clock-history text-muted"></i>
+                    {{ t('history_runs') }}
+                </h5>
+                <span class="text-muted small">{{ t('recent_history_desc') }}</span>
+            </div>
+            <a href="{{ url_for('reports.view_results', farm_id=farm.id) }}" class="btn btn-sm btn-outline-secondary rounded-pill px-3">
+                <i class="bi bi-list-ul me-1"></i> {{ t('full_audit_log') }}
+            </a>
+        </div>
+
+        <div class="table-responsive">
+            <table class="table table-custom table-hover align-middle mb-0" id="historyRunsTable">
+                <thead>
+                    <tr>
+                        <th>{{ t('th_run_id') }}</th>
+                        <th>{{ t('th_timestamp') }}</th>
+                        <th>{{ t('th_algorithm') }}</th>
+                        <th>{{ t('th_avail_water') }}</th>
+                        <th>{{ t('th_allocated') }}</th>
+                        <th>{{ t('unmet') }}</th>
+                        <th>{{ t('th_irrigation_cost') }}</th>
+                        <th>{{ t('th_net_return') }}</th>
+                        <th>{{ t('th_fairness') }}</th>
+                        <th>{{ t('th_export') }}</th>
+                    </tr>
+                </thead>
+                <tbody id="historyTableBody">
+                    {% if history %}
+                        {% for r in history %}
+                        <tr>
+                            <td class="font-mono fw-bold">#{{ r.id }}</td>
+                            <td class="small text-muted">{{ r.created_at }}</td>
+                            <td>
+                                <span class="badge {% if 'Hybrid' in r.algorithm %}badge-hybrid{% elif 'Dynamic' in r.algorithm %}badge-dp{% else %}badge-greedy{% endif %}">
+                                    {{ r.algorithm }}
+                                </span>
+                            </td>
+                            <td class="font-mono">{{ r.available_water }} m³</td>
+                            <td class="font-mono text-emerald fw-semibold">{{ r.total_allocated }} m³</td>
+                            <td class="font-mono {% if r.unmet_demand > 0 %}text-danger{% else %}text-muted{% endif %}">{{ r.unmet_demand }} m³</td>
+                            <td class="font-mono text-muted">₹{{ "{:,.2f}".format(r.total_cost) }}</td>
+                            <td class="font-mono fw-bold text-success">₹{{ "{:,.2f}".format(r.net_return) }}</td>
+                            <td class="font-mono">{{ r.fairness_index }}</td>
+                            <td>
+                                <div class="btn-group btn-group-sm">
+                                    <a href="{{ url_for('reports.export_run_report', run_id=r.id, format='csv') }}" class="btn btn-outline-secondary btn-sm font-mono py-0">CSV</a>
+                                    <a href="{{ url_for('reports.export_run_report', run_id=r.id, format='json') }}" class="btn btn-outline-secondary btn-sm font-mono py-0">JSON</a>
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    {% else %}
+                        <tr id="emptyHistoryRow">
+                            <td colspan="10" class="text-center text-muted py-3">
+                                {{ t('empty_history_prompt') }}
+                            </td>
+                        </tr>
+                    {% endif %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    {% endif %}
+
+</div>
+
+<!-- Injected Live Data from Python Flask Algorithms -->
+<script>
+    window.cropflowData = {
+        farmId: {{ farm.id if farm else 'null' }},
+        farmBudget: {{ farm.water_budget if farm else 0 }},
+        totalDemand: {{ farm.total_demand if farm else 0 }},
+        plots: {{ plots_dicts | tojson if plots_dicts else '[]' }},
+        comparison: {{ comparison.to_dict() | tojson if comparison else '{}' }},
+        demandMatrix: {{ demand_matrix | tojson if demand_matrix else '[]' }}
+    };
+</script>
+{% endblock %}
+
+{% block extra_scripts %}
+<script src="{{ url_for('static', filename='js/dashboard.js') }}"></script>
+{% endblock %}

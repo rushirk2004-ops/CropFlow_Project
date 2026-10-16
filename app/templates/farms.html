@@ -1,0 +1,402 @@
+{% extends "base.html" %}
+
+{% block title %}CropFlow - Farm & Plot Data Collection{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-lg-4">
+
+    <!-- Header & Farm Bar -->
+    <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3 mb-4">
+        <div>
+            <div class="d-flex align-items-center gap-2">
+                <h3 class="fw-bold text-dark mb-0">{{ t('farm_data_collection') }}</h3>
+                <span class="badge bg-secondary-subtle text-secondary border rounded-pill">{{ t('manual_simulated_badge') }}</span>
+            </div>
+            <p class="text-secondary small mb-0">
+                {{ t('farm_data_desc') }}
+            </p>
+        </div>
+
+        <div class="d-flex flex-wrap align-items-center gap-2">
+            <form method="GET" action="{{ url_for('farms.view_farms') }}" class="d-inline-flex align-items-center gap-1">
+                <select name="farm_id" class="form-select form-select-sm shadow-sm" onchange="this.form.submit()">
+                    {% for f in farms %}
+                    <option value="{{ f.id }}" {% if selected_farm and f.id == selected_farm.id %}selected{% endif %}>
+                        {{ f.name }} ({{ "{:,.0f}".format(f.total_available_water_liters) }} L)
+                    </option>
+                    {% endfor %}
+                </select>
+            </form>
+
+            <button type="button" class="btn btn-sm btn-outline-primary rounded-pill px-3" data-bs-toggle="modal" data-bs-target="#newFarmModal">
+                <i class="bi bi-plus-lg me-1"></i> {{ t('btn_new_farm') }}
+            </button>
+            <button type="button" class="btn btn-sm btn-success rounded-pill px-3 fw-semibold" data-bs-toggle="modal" data-bs-target="#newPlotModal">
+                <i class="bi bi-plus-circle me-1"></i> {{ t('btn_add_plot') }}
+            </button>
+            <button type="button" class="btn btn-sm btn-outline-danger rounded-pill px-3" onclick="reseedSampleData()">
+                <i class="bi bi-arrow-counterclockwise me-1"></i> {{ t('btn_reset_farm') }}
+            </button>
+        </div>
+    </div>
+
+    <!-- Notice banner confirming no real-time telemetry assumption -->
+    <div class="alert alert-light border d-flex align-items-center gap-3 py-2 px-3 mb-4 rounded-3 small">
+        <i class="bi bi-info-circle-fill text-primary fs-5"></i>
+        <div>
+            {{ t('telemetry_notice') }}
+        </div>
+    </div>
+
+    {% if selected_farm %}
+    <!-- Farm Summary Card -->
+    <div class="card bg-white border-0 shadow-sm p-4 mb-4">
+        <div class="d-flex flex-column flex-md-row justify-content-between align-items-start align-items-md-center gap-2 mb-3">
+            <div>
+                <h5 class="fw-bold text-dark mb-0">
+                    <i class="bi bi-geo-alt-fill text-danger me-2"></i>{{ selected_farm.name }}
+                </h5>
+                <span class="text-muted small">{{ selected_farm.location }} &bull; Farm ID: #{{ selected_farm.id }}</span>
+            </div>
+            <div class="d-flex gap-2">
+                <span class="badge {% if selected_farm.drought_severity == 'None' %}bg-success-subtle text-success{% elif selected_farm.drought_severity == 'Mild' %}bg-info-subtle text-info{% elif selected_farm.drought_severity == 'Moderate' %}bg-warning-subtle text-warning{% else %}bg-danger-subtle text-danger{% endif %} border px-3 py-2 rounded-pill font-mono">
+                    <i class="bi bi-shield-exclamation me-1"></i> {{ t('drought_severity') }}: {{ selected_farm.drought_severity }}
+                </span>
+            </div>
+        </div>
+
+        <div class="row g-3">
+            <div class="col-6 col-md-3">
+                <span class="text-muted small text-uppercase fw-semibold">{{ t('kpi_available_water') }}</span>
+                <div class="fs-4 fw-bold text-primary font-mono">
+                    {{ "{:,.0f}".format(selected_farm.total_available_water_liters) }} <span class="fs-6 fw-normal text-muted">L</span>
+                </div>
+                <span class="text-muted fs-xs">({{ selected_farm.water_budget }} m³)</span>
+            </div>
+            <div class="col-6 col-md-3">
+                <span class="text-muted small text-uppercase fw-semibold">{{ t('time_window') }}</span>
+                <div class="fs-5 fw-bold text-dark font-mono">
+                    <i class="bi bi-clock text-success me-1"></i>{{ selected_farm.window_start }} &rarr; {{ selected_farm.window_end }}
+                </div>
+                <span class="text-muted fs-xs">{{ selected_farm.window_duration_hours }} Hours Duration (Off-Peak)</span>
+            </div>
+            <div class="col-6 col-md-3">
+                <span class="text-muted small text-uppercase fw-semibold">{{ t('label_total_farm_area') }}</span>
+                <div class="fs-5 fw-bold text-dark font-mono">{{ selected_farm.total_area }} ha</div>
+                <span class="text-muted fs-xs">Pump: {{ selected_farm.pump_capacity }} m³/h</span>
+            </div>
+            <div class="col-6 col-md-3">
+                <span class="text-muted small text-uppercase fw-semibold">{{ t('economics') }}</span>
+                <div class="fs-6 fw-bold text-dark font-mono">
+                    {{ t('energy') }}: ₹{{ selected_farm.energy_rate }}/m³<br>
+                    {{ t('labor') }}: ₹{{ selected_farm.labor_rate }}/h
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Documented Assumptions Explainer Card -->
+    <div class="card bg-white border-0 shadow-sm p-4 mb-4">
+        <h6 class="fw-bold text-dark mb-2">
+            <i class="bi bi-calculator-fill text-success me-2"></i>{{ t('assumptions_title') }}
+        </h6>
+        <div class="row g-3 small text-secondary">
+            <div class="col-md-4">
+                <strong>1. Moisture Deficit Ratio (R<sub>deficit</sub>):</strong>
+                <p class="mb-0">
+                    Deficit ratio is calculated relative to root-zone Field Capacity (FC) and Wilting Point (WP):
+                    <code>R = (Target% - Current%) / (Target% - WiltingPoint%)</code>.
+                    If current moisture &ge; target, deficit is 0.
+                </p>
+            </div>
+            <div class="col-md-4">
+                <strong>2. Required Irrigation Water (Liters):</strong>
+                <p class="mb-0">
+                    User inputs the baseline gross seasonal water need (in liters). The system adjusts for current soil moisture:
+                    <code>Remaining Demand = Required Liters &times; R<sub>deficit</sub></code>.
+                </p>
+            </div>
+            <div class="col-md-4">
+                <strong>3. Hydraulic Constraints:</strong>
+                <p class="mb-0">
+                    All plot deliveries respect plot soil infiltration rate (mm/hr &times; area) to avoid surface runoff, ponding, or waterlogging.
+                </p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Plots Grid -->
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <h5 class="fw-bold text-dark mb-0">
+            {{ t('farm_plots') }} <span class="badge bg-secondary-subtle text-secondary rounded-pill ms-1">{{ plots|length }}</span>
+        </h5>
+        <button type="button" class="btn btn-sm btn-success rounded-pill px-3 fw-semibold" data-bs-toggle="modal" data-bs-target="#newPlotModal">
+            <i class="bi bi-plus-lg me-1"></i> {{ t('btn_add_another_plot') }}
+        </button>
+    </div>
+
+    <div class="row g-3">
+        {% for p in plots %}
+        <div class="col-md-6 col-xl-4">
+            <div class="card bg-white p-3 h-100 shadow-sm border">
+                <div class="d-flex justify-content-between align-items-start mb-2">
+                    <div>
+                        <div class="d-flex align-items-center gap-1">
+                            <span class="badge bg-dark text-white font-mono fs-xs">{{ p.plot_identifier }}</span>
+                            <h6 class="fw-bold text-dark mb-0">{{ p.name }}</h6>
+                        </div>
+                        <span class="badge bg-light text-dark border mt-1">{{ p.crop_type }}</span>
+                        <span class="badge {% if p.growth_stage == 'Flowering' %}bg-danger-subtle text-danger{% else %}bg-secondary-subtle text-secondary{% endif %}">
+                            {{ p.growth_stage }}
+                        </span>
+                    </div>
+                    <div class="text-end">
+                        <span class="badge bg-primary-subtle text-primary font-mono fw-bold">{{ p.area }} ha</span>
+                        <div class="small text-muted font-mono mt-1">{{ t('th_priority') }}: {{ p.priority }}/5</div>
+                    </div>
+                </div>
+
+                <div class="small text-muted mb-2">
+                    <div><strong>{{ t('soil') }}:</strong> {{ p.soil_type }} (Infiltration: {{ p.infiltration_rate }} mm/h)</div>
+                    <div><strong>{{ t('required_water') }}:</strong> {{ "{:,.0f}".format(p.water_required_liters) }} L</div>
+                    <div><strong>{{ t('kpi_estimated_cost') }}:</strong> ₹{{ "{:.6f}".format(p.cost_per_liter) }}/L</div>
+                </div>
+
+                <!-- Soil Moisture Gauge -->
+                <div class="mb-3">
+                    <div class="d-flex justify-content-between small text-muted mb-1 font-mono">
+                        <span>{{ t('th_moisture') }}: <strong class="text-dark">{{ p.current_moisture }}%</strong></span>
+                        <span>{{ t('th_target_moisture') }}: {{ p.target_moisture }}%</span>
+                    </div>
+                    <div class="progress" style="height: 8px;">
+                        <div class="progress-bar {% if p.current_moisture < 30 %}bg-danger{% else %}bg-info{% endif %}"
+                             style="width: {{ p.current_moisture }}%"></div>
+                    </div>
+                </div>
+
+                <div class="d-flex justify-content-between align-items-center pt-2 border-top mt-auto">
+                    <div>
+                        <span class="text-muted fs-xs text-uppercase d-block">{{ t('remaining_water_demand') }}</span>
+                        <span class="fw-bold text-primary font-mono fs-5">{{ "{:,.0f}".format(p.remaining_demand_liters) }} L</span>
+                        <span class="text-muted fs-xs d-block">({{ p.water_demand }} m³)</span>
+                    </div>
+                    <div class="d-flex gap-1">
+                        <button type="button" class="btn btn-sm btn-outline-danger rounded-pill px-2" onclick="deletePlot({{ p.id }})" title="Delete Plot">
+                            <i class="bi bi-trash"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    {% else %}
+    <div class="alert alert-info">No farms found. Please create a farm or reset sample data.</div>
+    {% endif %}
+
+</div>
+
+<!-- Modal: Add New Farm -->
+<div class="modal fade" id="newFarmModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title fw-bold">{{ t('create_farm_title') }}</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form id="createFarmForm" onsubmit="submitNewFarm(event)">
+                <div class="modal-body">
+                    <div id="farmFormAlert" class="alert alert-danger d-none py-2 small"></div>
+
+                    <div class="mb-3">
+                        <label class="form-label small fw-semibold">{{ t('label_farm_name') }} <span class="text-danger">*</span></label>
+                        <input type="text" class="form-control" name="name" id="farm_name" required placeholder="e.g. Sunny Ridge Agritech">
+                        <div class="invalid-feedback" id="err_farm_name"></div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label small fw-semibold">{{ t('label_farm_location') }}</label>
+                        <input type="text" class="form-control" name="location" id="farm_location" placeholder="e.g. Zone 2 - North Watershed">
+                    </div>
+                    <div class="row g-2 mb-3">
+                        <div class="col-6">
+                            <label class="form-label small fw-semibold">{{ t('label_avail_water_liters') }} <span class="text-danger">*</span></label>
+                            <input type="number" step="1000" min="0" class="form-control font-mono" name="total_available_water_liters" id="farm_water" value="650000" required>
+                            <div class="invalid-feedback" id="err_farm_total_available_water_liters"></div>
+                        </div>
+                        <div class="col-6">
+                            <label class="form-label small fw-semibold">{{ t('drought_severity') }}</label>
+                            <select class="form-select" name="drought_severity">
+                                {% for s in drought_severities %}
+                                <option value="{{ s }}" {% if s == 'Moderate' %}selected{% endif %}>{{ s }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                    </div>
+                    <div class="row g-2 mb-3">
+                        <div class="col-6">
+                            <label class="form-label small fw-semibold">{{ t('label_irrigation_start') }}</label>
+                            <input type="time" class="form-control font-mono" name="window_start" value="20:00" required>
+                        </div>
+                        <div class="col-6">
+                            <label class="form-label small fw-semibold">{{ t('label_irrigation_end') }}</label>
+                            <input type="time" class="form-control font-mono" name="window_end" value="06:00" required>
+                        </div>
+                    </div>
+                    <div class="row g-2">
+                        <div class="col-6">
+                            <label class="form-label small fw-semibold">{{ t('label_pump_capacity') }}</label>
+                            <input type="number" step="0.5" min="0.1" class="form-control font-mono" name="pump_capacity" value="25.0" required>
+                        </div>
+                        <div class="col-6">
+                            <label class="form-label small fw-semibold">{{ t('label_window_duration') }}</label>
+                            <input type="number" step="0.5" min="0.5" max="24" class="form-control font-mono" name="window_duration_hours" value="10.0" required>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary btn-sm rounded-pill" data-bs-dismiss="modal">{{ t('btn_cancel') }}</button>
+                    <button type="submit" class="btn btn-primary btn-sm rounded-pill px-4">{{ t('btn_save_farm') }}</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Modal: Add New Plot with Full Validation -->
+<div class="modal fade" id="newPlotModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title fw-bold">{{ t('add_plot_title') }}</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form id="createPlotForm" onsubmit="submitNewPlot(event)">
+                <div class="modal-body">
+                    <div id="plotFormAlert" class="alert alert-danger d-none py-2 small"></div>
+
+                    <div class="row g-3">
+                        <!-- Plot ID & Name -->
+                        <div class="col-md-4">
+                            <div class="d-flex justify-content-between align-items-center mb-1">
+                                <label class="form-label small fw-semibold mb-0">{{ t('form_plot_id') }} <span class="text-danger">*</span></label>
+                                <button type="button" class="btn btn-link btn-sm p-0 text-decoration-none fs-xs text-emerald fw-semibold" onclick="generateNextPlotId()" title="Generate next unique Plot ID">
+                                    <i class="bi bi-magic me-1"></i>{{ t('btn_auto_id') }}
+                                </button>
+                            </div>
+                            <div class="input-group">
+                                <input type="text" class="form-control font-mono" name="plot_identifier" id="inputPlotId" required placeholder="e.g. P-107" oninput="checkPlotIdLive(this.value)">
+                                <button class="btn btn-outline-secondary btn-sm" type="button" onclick="generateNextPlotId()" title="Auto-generate next unique ID">
+                                    <i class="bi bi-arrow-repeat"></i>
+                                </button>
+                            </div>
+                            <div class="invalid-feedback" id="err_plot_identifier"></div>
+                            <span class="fs-xs text-muted" id="plotIdHint">{{ t('form_plot_id_hint') }}</span>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label small fw-semibold">{{ t('form_plot_name') }}</label>
+                            <input type="text" class="form-control" name="name" id="inputName" placeholder="e.g. Plot G - Sunflower">
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label small fw-semibold">{{ t('form_area') }} <span class="text-danger">*</span></label>
+                            <input type="number" step="0.1" min="0.01" class="form-control font-mono" id="inputArea" name="area" value="3.0" required oninput="triggerDemandPreview()">
+                            <div class="invalid-feedback" id="err_area"></div>
+                        </div>
+
+                        <!-- Crop & Stage -->
+                        <div class="col-md-4">
+                            <label class="form-label small fw-semibold">{{ t('form_crop_type') }} <span class="text-danger">*</span></label>
+                            <select class="form-select" name="crop_type" id="inputCrop" onchange="autoFillCropDefaults(this.value); triggerDemandPreview();">
+                                {% for c in crop_types %}
+                                <option value="{{ c }}">{{ c }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label small fw-semibold">{{ t('form_growth_stage') }} <span class="text-danger">*</span></label>
+                            <select class="form-select" name="growth_stage" id="inputStage" onchange="updateStageSensitivity(this.value)">
+                                {% for s in stages %}
+                                <option value="{{ s }}" {% if s == 'Vegetative' %}selected{% endif %}>{{ s }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label small fw-semibold">{{ t('form_crop_priority') }} <span class="text-danger">*</span></label>
+                            <input type="number" min="1" max="5" class="form-control font-mono" name="priority" id="inputPriority" value="3" required>
+                            <div class="invalid-feedback" id="err_priority"></div>
+                        </div>
+
+                        <!-- Soil & Infiltration -->
+                        <div class="col-md-4">
+                            <label class="form-label small fw-semibold">{{ t('form_soil_type') }} <span class="text-danger">*</span></label>
+                            <select class="form-select" id="inputSoil" name="soil_type" onchange="updateSoilDefaults(this.value); triggerDemandPreview();">
+                                {% for st in soil_types %}
+                                <option value="{{ st }}" {% if st == 'Loamy' %}selected{% endif %}>{{ st }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label small fw-semibold">{{ t('form_infiltration_rate') }} <span class="text-danger">*</span></label>
+                            <input type="number" step="0.5" min="0.1" class="form-control font-mono" id="inputInfRate" name="infiltration_rate" value="16.0" required>
+                            <div class="invalid-feedback" id="err_infiltration_rate"></div>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label small fw-semibold">{{ t('form_cost_per_liter') }} <span class="text-danger">*</span></label>
+                            <input type="number" step="0.000005" min="0" class="form-control font-mono" id="inputCostPerLiter" name="cost_per_liter" value="0.003500" required>
+                            <div class="invalid-feedback" id="err_cost_per_liter"></div>
+                        </div>
+
+                        <!-- Moisture & Required Liters -->
+                        <div class="col-md-4">
+                            <label class="form-label small fw-semibold">{{ t('form_current_moisture') }} <span class="text-danger">*</span></label>
+                            <input type="number" step="0.5" min="0" max="100" class="form-control font-mono" id="inputCurrentM" name="current_moisture" value="30.0" required oninput="triggerDemandPreview()">
+                            <div class="invalid-feedback" id="err_current_moisture"></div>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label small fw-semibold">{{ t('form_required_water') }} <span class="text-danger">*</span></label>
+                            <input type="number" step="1000" min="0" class="form-control font-mono" id="inputReqLiters" name="water_required_liters" value="150000" required oninput="triggerDemandPreview()">
+                            <div class="invalid-feedback" id="err_water_required_liters"></div>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label small fw-semibold">{{ t('form_target_moisture') }}</label>
+                            <input type="number" step="0.5" min="0" max="100" class="form-control font-mono" id="inputTargetM" name="target_moisture" value="75.0" required oninput="triggerDemandPreview()">
+                        </div>
+                    </div>
+
+                    <!-- Live Calculation & Assumptions Preview Container -->
+                    <div class="bg-light border rounded-3 p-3 mt-3">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div>
+                                <span class="text-muted small text-uppercase fw-semibold d-block">{{ t('form_remaining_demand') }}</span>
+                                <span class="small text-secondary" id="soilStatusBadge">{{ t('status_deficit_active') }}</span>
+                            </div>
+                            <div class="text-end">
+                                <div class="fs-4 fw-bold text-success font-mono" id="demandPreviewVal">-- Liters</div>
+                                <span class="fs-xs text-muted" id="demandPreviewM3">(-- m³)</span>
+                            </div>
+                        </div>
+                        <hr class="my-2 text-muted">
+                        <div class="small text-muted font-mono" id="assumptionsLog" style="font-size: 0.78rem;">
+                            Deficit ratio calculation active...
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary btn-sm rounded-pill" data-bs-dismiss="modal">{{ t('btn_cancel') }}</button>
+                    <button type="submit" class="btn btn-success btn-sm rounded-pill px-4 fw-semibold">{{ t('btn_save_plot') }}</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+{% if selected_farm %}
+<script>
+    window.currentFarmId = {{ selected_farm.id }};
+    window.existingPlotIds = [{% for p in plots %}'{{ p.plot_identifier }}',{% endfor %}];
+</script>
+{% endif %}
+{% endblock %}
+
+{% block extra_scripts %}
+<script src="{{ url_for('static', filename='js/farm-form.js') }}"></script>
+{% endblock %}

@@ -1,0 +1,192 @@
+{% extends "base.html" %}
+
+{% block title %}CropFlow - Optimal Irrigation Scheduling with Limited Water{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-lg-5">
+
+    <!-- Hero Section -->
+    <div class="row align-items-center py-4 mb-4">
+        <div class="col-lg-7">
+            <div class="d-inline-flex align-items-center gap-2 px-3 py-1 mb-3 rounded-pill bg-success-subtle text-success border border-success-subtle small fw-semibold">
+                <i class="bi bi-shield-check"></i> Agronomic Optimization Engine
+            </div>
+            <h1 class="display-5 fw-extrabold text-dark tracking-tight mb-3">
+                Optimal Irrigation Scheduling <br>
+                <span class="text-success">with Limited Water Resources</span>
+            </h1>
+            <p class="lead text-secondary mb-4">
+                CropFlow combines <strong>Greedy Priority Triage</strong> with <strong>Dynamic Programming</strong> to maximize total crop yield, eliminate water waste, and generate actionable, infiltration-safe pump schedules under severe water scarcity and drought constraints.
+            </p>
+            <div class="d-flex flex-wrap gap-3">
+                <a href="{{ url_for('dashboard.view_dashboard') }}" class="btn btn-success btn-lg px-4 rounded-pill shadow-sm fw-semibold">
+                    <i class="bi bi-speedometer2 me-2"></i> Launch Dashboard
+                </a>
+                <a href="{{ url_for('reports.view_results') }}" class="btn btn-outline-dark btn-lg px-4 rounded-pill fw-semibold">
+                    <i class="bi bi-bar-chart-steps me-2"></i> Compare Strategies
+                </a>
+                <a href="{{ url_for('farms.view_farms') }}" class="btn btn-light border btn-lg px-4 rounded-pill fw-semibold">
+                    <i class="bi bi-grid-3x3 me-2"></i> Farm & Plot Inputs
+                </a>
+            </div>
+        </div>
+        <div class="col-lg-5 mt-4 mt-lg-0">
+            <div class="card shadow-sm border-0 bg-white p-4">
+                <h5 class="fw-bold mb-3 d-flex align-items-center gap-2">
+                    <i class="bi bi-cpu text-primary"></i> Algorithm Suite At-a-Glance
+                </h5>
+                <div class="list-group list-group-flush small">
+                    <div class="list-group-item px-0 py-2 border-0">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <span class="badge badge-greedy px-2 py-1 rounded">Greedy Allocation</span>
+                            <span class="font-mono text-muted">O(N log N)</span>
+                        </div>
+                        <p class="text-muted mt-1 mb-0">Prioritizes critical flowering crops with highest urgency ratios until water runs out.</p>
+                    </div>
+                    <div class="list-group-item px-0 py-2 border-0">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <span class="badge badge-dp px-2 py-1 rounded">Dynamic Programming</span>
+                            <span class="font-mono text-muted">O(N &times; M &times; K)</span>
+                        </div>
+                        <p class="text-muted mt-1 mb-0">Discretizes water volume and determines global maximum net yield on concave FAO-33 curves.</p>
+                    </div>
+                    <div class="list-group-item px-0 py-2 border-0">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <span class="badge badge-hybrid px-2 py-1 rounded">Hybrid Approach</span>
+                            <span class="font-mono text-success fw-bold">Proposed Standard</span>
+                        </div>
+                        <p class="text-muted mt-1 mb-0">Guarantees vital survival baseline for sensitive plots, then optimizes residual water via DP.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 5-Layer System Architecture -->
+    <div class="my-5">
+        <div class="text-center mb-4">
+            <h3 class="fw-bold text-dark">5-Layer System Architecture</h3>
+            <p class="text-secondary">Modular, decoupled pipeline from agronomic sensor inputs to operational pump execution</p>
+        </div>
+
+        <div class="row g-3">
+            <!-- Layer 1 -->
+            <div class="col-md-6 col-lg-4">
+                <div class="card h-100 layer-card bg-white p-3">
+                    <div class="d-flex align-items-center gap-2 mb-3">
+                        <span class="layer-num bg-primary-subtle text-primary">1</span>
+                        <h6 class="fw-bold mb-0">Input Layer (Data Collection)</h6>
+                    </div>
+                    <ul class="text-secondary small mb-0 ps-3">
+                        <li><strong>Crop Info:</strong> Growth stage (Flowering, Vegetative), Ky factor</li>
+                        <li><strong>Soil Data:</strong> Moisture %, Soil type (Sandy, Loamy, Clay), Infiltration rate</li>
+                        <li><strong>Water Budget:</strong> Total available reservoir/borewell m³</li>
+                        <li><strong>Irrigation Cost:</strong> Pumping electricity & labor rates</li>
+                        <li><strong>Plot Data:</strong> Area (ha), crop value, farmer priority</li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Layer 2 -->
+            <div class="col-md-6 col-lg-4">
+                <div class="card h-100 layer-card bg-white p-3 border-success-subtle">
+                    <div class="d-flex align-items-center gap-2 mb-3">
+                        <span class="layer-num bg-success text-white">2</span>
+                        <h6 class="fw-bold mb-0 text-success">Processing & Optimization Layer</h6>
+                    </div>
+                    <ul class="text-secondary small mb-0 ps-3">
+                        <li><strong>Data Preprocessing:</strong> Impute defaults, compute moisture deficit matrix</li>
+                        <li><strong>Optimization Engine:</strong>
+                            <span class="badge bg-light text-dark border">Greedy</span>
+                            <span class="badge bg-light text-dark border">DP Knapsack</span>
+                            <span class="badge bg-light text-dark border">Hybrid</span>
+                        </li>
+                        <li><strong>Scheduling Module:</strong> Flow rate limits, off-peak electricity tariffs</li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Layer 3 -->
+            <div class="col-md-6 col-lg-4">
+                <div class="card h-100 layer-card bg-white p-3">
+                    <div class="d-flex align-items-center gap-2 mb-3">
+                        <span class="layer-num bg-info-subtle text-info">3</span>
+                        <h6 class="fw-bold mb-0">Output & Results Layer</h6>
+                    </div>
+                    <ul class="text-secondary small mb-0 ps-3">
+                        <li><strong>Irrigation Schedule:</strong> Actionable start/end times & duration</li>
+                        <li><strong>Performance Metrics:</strong> Water utilization %, unmet demand m³</li>
+                        <li><strong>Preserved Yield:</strong> Net economic return calculation (₹)</li>
+                        <li><strong>Equity:</strong> Jain's Fairness Index across plots</li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Layer 4 -->
+            <div class="col-md-6 col-lg-6">
+                <div class="card h-100 layer-card bg-white p-3">
+                    <div class="d-flex align-items-center gap-2 mb-3">
+                        <span class="layer-num bg-secondary-subtle text-secondary">4</span>
+                        <h6 class="fw-bold mb-0">Data Storage Layer (SQLite)</h6>
+                    </div>
+                    <p class="text-secondary small mb-2">Relational schema supporting cascading integrity, persistent audit trails, and multi-farm historical runs:</p>
+                    <div class="d-flex flex-wrap gap-2 font-mono small">
+                        <span class="badge bg-light text-dark border">farms</span>
+                        <span class="badge bg-light text-dark border">plots</span>
+                        <span class="badge bg-light text-dark border">optimization_runs</span>
+                        <span class="badge bg-light text-dark border">allocations</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Layer 5 -->
+            <div class="col-md-12 col-lg-6">
+                <div class="card h-100 layer-card bg-white p-3">
+                    <div class="d-flex align-items-center gap-2 mb-3">
+                        <span class="layer-num bg-dark text-white">5</span>
+                        <h6 class="fw-bold mb-0">User Interface Layer</h6>
+                    </div>
+                    <p class="text-secondary small mb-2">Responsive browser interface engineered with Bootstrap 5, Chart.js, and vanilla JavaScript:</p>
+                    <div class="d-flex flex-wrap gap-2">
+                        <span class="badge bg-primary-subtle text-primary">Live Charts</span>
+                        <span class="badge bg-success-subtle text-success">Drought Simulator Slider</span>
+                        <span class="badge bg-warning-subtle text-warning">Dynamic Demand Preview</span>
+                        <span class="badge bg-info-subtle text-info">CSV / JSON Export</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Mathematical Formulation Section -->
+    <div class="card bg-white border-0 shadow-sm p-4 p-lg-5 my-5">
+        <h4 class="fw-bold mb-3"><i class="bi bi-calculator text-success me-2"></i>Mathematical Problem Formulation</h4>
+        <div class="row g-4 align-items-center">
+            <div class="col-lg-7">
+                <p class="text-secondary">CropFlow addresses the bounded water deficit allocation problem with non-linear yield responses and hydraulic pump limits:</p>
+                <div class="p-3 bg-light rounded-3 font-mono small text-dark mb-3">
+                    <strong>Objective Function:</strong><br>
+                    Maximize Z = &sum;<sub>i=1..N</sub> [ Y<sub>pres</sub>(w<sub>i</sub>) &times; Value<sub>i</sub> ] - &sum;<sub>i=1..N</sub> [ Cost<sub>pumping</sub>(w<sub>i</sub>) + Cost<sub>labor</sub>(T<sub>i</sub>) ]
+                </div>
+                <div class="p-3 bg-light rounded-3 font-mono small text-dark">
+                    <strong>Constraints:</strong><br>
+                    1. &sum;<sub>i=1..N</sub> w<sub>i</sub> &le; W<sub>available</sub> &nbsp;&nbsp;(Water Budget Constraint)<br>
+                    2. 0 &le; w<sub>i</sub> &le; Demand<sub>i</sub> &nbsp;&nbsp;(No Waterlogging / Waste)<br>
+                    3. Q<sub>i</sub> &le; Infiltration<sub>i</sub> &times; Area<sub>i</sub> &nbsp;&nbsp;(Runoff Prevention Constraint)<br>
+                    4. FAO-33 Concave Yield: Y/Y<sub>max</sub> = 1 - K<sub>y</sub> &times; (1 - w<sub>i</sub>/Demand<sub>i</sub>)
+                </div>
+            </div>
+            <div class="col-lg-5">
+                <div class="bg-success-subtle border border-success-subtle p-3 rounded-3">
+                    <h6 class="fw-bold text-success mb-2"><i class="bi bi-lightbulb me-1"></i>Why the Hybrid Strategy Wins</h6>
+                    <p class="small text-secondary mb-0">
+                        Under severe drought (e.g. 50% water curtailment), <strong>Greedy</strong> allocates 100% to the top 2 plots and leaves remaining plots with 0%, causing complete crop death in those fields. <br><br>
+                        <strong>Hybrid</strong> guarantees a 25-30% baseline to prevent irreversible wilting across all sensitive crops, and uses <strong>Dynamic Programming</strong> to find the optimal diminishing-return balance for the remaining water.
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+</div>
+{% endblock %}

@@ -1,0 +1,462 @@
+/* ==========================================================================
+   CropFlow - Agriculture-Themed Stylesheet
+   Modern Responsive Irrigation Analytics with Green Accents & Sidebar
+   ========================================================================== */
+
+:root {
+    /* Agriculture-Inspired Color Palette */
+    --cf-sidebar-bg: #092116;
+    --cf-sidebar-surface: #0f3323;
+    --cf-sidebar-border: rgba(255, 255, 255, 0.08);
+    --cf-sidebar-text: #94a3b8;
+    --cf-sidebar-text-active: #ffffff;
+    
+    /* Emerald & Foliage Accents */
+    --cf-emerald-primary: #10b981;
+    --cf-emerald-dark: #059669;
+    --cf-emerald-deep: #047857;
+    --cf-emerald-light: #34d399;
+    --cf-emerald-subtle: #d1fae5;
+    --cf-emerald-surface: #ecfdf5;
+
+    /* Earth & Resource Accents */
+    --cf-water-cyan: #0ea5e9;
+    --cf-water-subtle: #e0f2fe;
+    --cf-amber-soil: #f59e0b;
+    --cf-amber-subtle: #fef3c7;
+    --cf-rose-deficit: #f43f5e;
+    --cf-rose-subtle: #ffe4e6;
+    --cf-purple-energy: #8b5cf6;
+    --cf-purple-subtle: #f3e8ff;
+
+    /* Surfaces & Neutrals */
+    --cf-body-bg: #f8fafc;
+    --cf-card-bg: #ffffff;
+    --cf-border: #e2e8f0;
+    --cf-text-main: #1e293b;
+    --cf-text-muted: #64748b;
+
+    /* Typography */
+    --font-sans: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+    --font-mono: 'JetBrains Mono', monospace;
+}
+
+/* Base Body & Reset */
+body.cropflow-body {
+    font-family: var(--font-sans);
+    background-color: var(--cf-body-bg);
+    color: var(--cf-text-main);
+    margin: 0;
+    padding: 0;
+    overflow-x: hidden;
+}
+
+.font-mono {
+    font-family: var(--font-mono) !important;
+}
+
+.fs-xs {
+    font-size: 0.72rem !important;
+}
+
+.text-emerald {
+    color: var(--cf-emerald-primary) !important;
+}
+
+.text-emerald-light {
+    color: var(--cf-emerald-light) !important;
+}
+
+.bg-emerald {
+    background-color: var(--cf-emerald-primary) !important;
+    color: #ffffff !important;
+}
+
+.bg-emerald-subtle {
+    background-color: var(--cf-emerald-subtle) !important;
+    color: var(--cf-emerald-deep) !important;
+}
+
+.btn-emerald {
+    background-color: var(--cf-emerald-primary);
+    border-color: var(--cf-emerald-primary);
+    color: #ffffff;
+    font-weight: 600;
+    transition: all 0.2s ease;
+}
+
+.btn-emerald:hover, .btn-emerald:focus {
+    background-color: var(--cf-emerald-dark);
+    border-color: var(--cf-emerald-dark);
+    color: #ffffff;
+    box-shadow: 0 4px 12px rgba(16, 185, 129, 0.25);
+}
+
+.btn-outline-emerald {
+    color: var(--cf-emerald-primary);
+    border-color: var(--cf-emerald-primary);
+    background-color: transparent;
+}
+
+.btn-outline-emerald:hover {
+    background-color: var(--cf-emerald-primary);
+    border-color: var(--cf-emerald-primary);
+    color: #ffffff;
+}
+
+/* ==========================================================================
+   Responsive Layout: Sidebar + Main Area
+   ========================================================================== */
+
+.cropflow-wrapper {
+    display: flex;
+    min-height: 100vh;
+    width: 100%;
+}
+
+/* Sidebar Styles */
+.cropflow-sidebar {
+    width: 260px;
+    background-color: var(--cf-sidebar-bg);
+    color: var(--cf-sidebar-text);
+    display: flex;
+    flex-direction: column;
+    flex-shrink: 0;
+    border-right: 1px solid var(--cf-sidebar-border);
+    z-index: 1040;
+    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.brand-icon-box {
+    width: 36px;
+    height: 36px;
+    background: rgba(16, 185, 129, 0.15);
+    border-radius: 10px;
+    border: 1px solid rgba(16, 185, 129, 0.3);
+}
+
+.brand-subtitle {
+    font-size: 0.68rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    font-family: var(--font-mono);
+}
+
+.text-muted-sidebar {
+    color: #64748b;
+}
+
+.sidebar-status-card {
+    background-color: var(--cf-sidebar-surface);
+    border: 1px solid var(--cf-sidebar-border);
+}
+
+.text-sidebar-status {
+    color: #cbd5e1;
+}
+
+/* Status Indicator Dot */
+.status-indicator-dot {
+    display: inline-block;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+}
+
+.status-indicator-dot.online {
+    background-color: var(--cf-emerald-primary);
+    box-shadow: 0 0 8px var(--cf-emerald-primary);
+}
+
+.status-indicator-dot.offline {
+    background-color: var(--cf-rose-deficit);
+    box-shadow: 0 0 8px var(--cf-rose-deficit);
+}
+
+/* Sidebar Links */
+.sidebar-link {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    color: var(--cf-sidebar-text);
+    padding: 0.65rem 1rem;
+    border-radius: 8px;
+    font-weight: 500;
+    font-size: 0.92rem;
+    text-decoration: none;
+    transition: all 0.15s ease-in-out;
+}
+
+.sidebar-link i {
+    font-size: 1.15rem;
+    transition: transform 0.15s ease;
+}
+
+.sidebar-link:hover {
+    color: var(--cf-sidebar-text-active);
+    background-color: var(--cf-sidebar-surface);
+}
+
+.sidebar-link:hover i {
+    transform: scale(1.1);
+    color: var(--cf-emerald-light);
+}
+
+.sidebar-link.active {
+    color: #ffffff;
+    background-color: var(--cf-emerald-deep);
+    font-weight: 600;
+    box-shadow: 0 2px 8px rgba(4, 120, 87, 0.3);
+}
+
+.sidebar-link.active i {
+    color: var(--cf-emerald-light);
+}
+
+/* Sidebar Algorithm Badges */
+.badge-greedy-pill {
+    background-color: rgba(245, 158, 11, 0.15);
+    color: #fbbf24;
+    border: 1px solid rgba(245, 158, 11, 0.3);
+}
+
+.badge-dp-pill {
+    background-color: rgba(14, 165, 233, 0.15);
+    color: #38bdf8;
+    border: 1px solid rgba(14, 165, 233, 0.3);
+}
+
+.badge-hybrid-pill {
+    background-color: rgba(16, 185, 129, 0.2);
+    color: #34d399;
+    border: 1px solid rgba(16, 185, 129, 0.4);
+}
+
+/* Main Content Area */
+.cropflow-main {
+    flex: 1 1 auto;
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    background-color: var(--cf-body-bg);
+}
+
+.cropflow-topbar {
+    height: 62px;
+    z-index: 1020;
+    background: #ffffff;
+    border-bottom: 1px solid var(--cf-border);
+}
+
+.cropflow-content {
+    flex: 1 0 auto;
+}
+
+/* Mobile Sidebar Behavior */
+@media (max-width: 991.98px) {
+    .cropflow-sidebar {
+        position: fixed;
+        top: 0;
+        bottom: 0;
+        left: 0;
+        transform: translateX(-100%);
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+    }
+
+    .cropflow-sidebar.show {
+        transform: translateX(0);
+    }
+}
+
+/* ==========================================================================
+   Summary Cards & KPI Displays
+   ========================================================================== */
+
+.card {
+    background-color: var(--cf-card-bg);
+    border: 1px solid var(--cf-border);
+    border-radius: 14px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04), 0 1px 2px rgba(0, 0, 0, 0.02);
+    transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.card:hover {
+    box-shadow: 0 6px 18px -4px rgba(0, 0, 0, 0.06);
+}
+
+.kpi-card {
+    border: 1px solid var(--cf-border);
+    position: relative;
+    overflow: hidden;
+}
+
+.kpi-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 4px;
+}
+
+.kpi-card.border-accent-water::before { background: var(--cf-water-cyan); }
+.kpi-card.border-accent-demand::before { background: var(--cf-amber-soil); }
+.kpi-card.border-accent-allocated::before { background: var(--cf-emerald-primary); }
+.kpi-card.border-accent-cost::before { background: var(--cf-purple-energy); }
+
+.kpi-icon-badge {
+    width: 48px;
+    height: 48px;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.4rem;
+}
+
+/* Algorithm Strategy Badges */
+.badge-greedy {
+    background-color: var(--cf-amber-subtle);
+    color: #92400e;
+    border: 1px solid #fde68a;
+}
+
+.badge-dp {
+    background-color: var(--cf-water-subtle);
+    color: #0369a1;
+    border: 1px solid #bae6fd;
+}
+
+.badge-hybrid {
+    background-color: var(--cf-emerald-subtle);
+    color: var(--cf-emerald-deep);
+    border: 1px solid #a7f3d0;
+}
+
+/* ==========================================================================
+   Drought Scenario Simulator Styling
+   ========================================================================== */
+
+.drought-simulator-card {
+    background: linear-gradient(135deg, #ffffff 0%, #f0fdf4 100%);
+    border: 1px solid #bbf7d0;
+}
+
+.form-range::-webkit-slider-runnable-track {
+    height: 8px;
+    border-radius: 4px;
+    background: #e2e8f0;
+}
+
+.form-range::-webkit-slider-thumb {
+    width: 20px;
+    height: 20px;
+    margin-top: -6px;
+    border-radius: 50%;
+    background: var(--cf-emerald-primary);
+    border: 2px solid #ffffff;
+    box-shadow: 0 2px 6px rgba(16, 185, 129, 0.4);
+    cursor: pointer;
+    transition: transform 0.1s ease;
+}
+
+.form-range::-webkit-slider-thumb:hover {
+    transform: scale(1.15);
+}
+
+.form-range::-moz-range-thumb {
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    background: var(--cf-emerald-primary);
+    border: 2px solid #ffffff;
+    box-shadow: 0 2px 6px rgba(16, 185, 129, 0.4);
+    cursor: pointer;
+}
+
+/* ==========================================================================
+   Tables & Data Presentation
+   ========================================================================== */
+
+.table-custom {
+    margin-bottom: 0;
+}
+
+.table-custom th {
+    background-color: #f8fafc;
+    color: #475569;
+    font-weight: 600;
+    font-size: 0.8rem;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    padding: 0.85rem 1rem;
+    border-bottom: 2px solid var(--cf-border);
+}
+
+.table-custom td {
+    padding: 0.85rem 1rem;
+    vertical-align: middle;
+    font-size: 0.92rem;
+    border-bottom: 1px solid #f1f5f9;
+}
+
+.table-custom tbody tr:hover {
+    background-color: rgba(240, 253, 244, 0.5);
+}
+
+/* Progress Bars */
+.progress-thin {
+    height: 6px;
+    border-radius: 3px;
+    background-color: #e2e8f0;
+}
+
+/* Empty States */
+.empty-state-box {
+    padding: 3rem 1.5rem;
+    text-align: center;
+}
+
+.empty-state-icon {
+    width: 64px;
+    height: 64px;
+    margin: 0 auto 1rem;
+    border-radius: 50%;
+    background: var(--cf-emerald-subtle);
+    color: var(--cf-emerald-primary);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 2rem;
+}
+
+/* Loading Overlay */
+.cropflow-spinner {
+    display: inline-block;
+    width: 1.1rem;
+    height: 1.1rem;
+    border: 2px solid rgba(255, 255, 255, 0.3);
+    border-top-color: #ffffff;
+    border-radius: 50%;
+    animation: cf-spin 0.7s linear infinite;
+}
+
+@keyframes cf-spin {
+    to { transform: rotate(360deg); }
+}
+
+/* Print Optimization */
+@media print {
+    .cropflow-sidebar, .cropflow-topbar, .btn, .drought-simulator-card {
+        display: none !important;
+    }
+
+    body {
+        background-color: #ffffff !important;
+    }
+
+    .card {
+        box-shadow: none !important;
+        border: 1px solid #ccc !important;
+    }
+}

@@ -1,0 +1,370 @@
+{% extends "base.html" %}
+
+{% block title %}CropFlow - Optimization Results & Strategy Comparison{% endblock %}
+{% block page_title %}Optimization Results & Benchmarks{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-0">
+
+    {% if not farm or not comparison or not comparison.results %}
+    <!-- Empty State -->
+    <div class="card border-0 shadow-sm p-5 text-center my-4">
+        <div class="empty-state-icon">
+            <i class="bi bi-file-earmark-bar-graph"></i>
+        </div>
+        <h4 class="fw-bold text-dark mb-2">No Optimization Results Available</h4>
+        <p class="text-muted mx-auto" style="max-width: 480px;">
+            Please select a farm with active plots to view optimization benchmarks, per-plot allocations, and the hourly irrigation schedule.
+        </p>
+        <div class="d-flex justify-content-center gap-2 mt-3">
+            <a href="{{ url_for('dashboard.view_dashboard') }}" class="btn btn-emerald rounded-pill px-4">
+                <i class="bi bi-speedometer2 me-1"></i> Go to Dashboard
+            </a>
+        </div>
+    </div>
+    {% else %}
+
+    <!-- Results Header -->
+    <div class="d-flex flex-column flex-xl-row justify-content-between align-items-xl-center gap-3 mb-4">
+        <div>
+            <div class="d-flex align-items-center gap-2">
+                <h3 class="fw-bold text-dark mb-0">{{ t('results_title') }}</h3>
+                <span class="badge bg-emerald-subtle text-emerald border border-success-subtle rounded-pill font-mono fs-xs px-2 py-1">
+                    {{ comparison.scenario }}
+                </span>
+            </div>
+            <p class="text-muted small mb-0 mt-1">
+                {{ t('active_farm') }}: <strong>{{ farm.name }}</strong> &bull; {{ t('water_budget') }}: <strong>{{ farm.water_budget }} m³</strong> &bull; {{ t('total_demand') }}: <strong>{{ farm.total_demand }} m³</strong> &bull; {{ t('area') }}: {{ farm.total_area }} ha
+            </p>
+        </div>
+
+        <div class="d-flex flex-wrap align-items-center gap-2">
+            <!-- Farm Selector -->
+            <form method="GET" action="{{ url_for('reports.view_results') }}" class="d-inline-flex align-items-center">
+                <select name="farm_id" class="form-select form-select-sm shadow-sm font-mono" onchange="this.form.submit()">
+                    {% for f in farms %}
+                    <option value="{{ f.id }}" {% if f.id == farm.id %}selected{% endif %}>
+                        {{ f.name }} ({{ t('budget') }}: {{ f.water_budget }} m³)
+                    </option>
+                    {% endfor %}
+                </select>
+            </form>
+            <button class="btn btn-sm btn-outline-dark rounded-pill px-3" onclick="window.print()">
+                <i class="bi bi-printer me-1"></i> Print / PDF
+            </button>
+            <a href="{{ url_for('dashboard.view_dashboard', farm_id=farm.id) }}" class="btn btn-sm btn-emerald rounded-pill px-3">
+                <i class="bi bi-speedometer2 me-1"></i> {{ t('nav_dashboard') }}
+            </a>
+        </div>
+    </div>
+
+    <!-- Strategy Comparison Cards (Greedy vs Dynamic Programming vs Hybrid) -->
+    <div class="row g-3 mb-4">
+        {% set greedy = comparison.results['greedy'] %}
+        {% set dp = comparison.results['dynamic_programming'] %}
+        {% set hybrid = comparison.results['hybrid'] %}
+
+        <!-- Greedy Card -->
+        <div class="col-lg-4">
+            <div class="card p-3 h-100 shadow-sm border-top border-4" style="border-top-color: #f59e0b !important;">
+                <div class="d-flex justify-content-between align-items-start mb-2">
+                    <div>
+                        <span class="badge badge-greedy px-2 py-1 rounded">{{ t('alg_greedy') }}</span>
+                        <h4 class="fw-bold text-dark mt-2 mb-0">₹{{ "{:,.2f}".format(greedy.total_benefit) }}</h4>
+                        <span class="text-muted fs-xs">{{ t('kpi_net_return') }}</span>
+                    </div>
+                    <span class="badge bg-light text-muted border font-mono fs-xs">{{ greedy.execution_time_ms }} ms</span>
+                </div>
+                <hr class="my-2 text-muted">
+                <div class="row g-2 small">
+                    <div class="col-6">
+                        <span class="text-muted fs-xs">{{ t('th_allocated') }}:</span>
+                        <div class="fw-semibold font-mono">{{ greedy.total_allocated }} m³</div>
+                    </div>
+                    <div class="col-6">
+                        <span class="text-muted fs-xs">{{ t('unmet') }}:</span>
+                        <div class="fw-semibold font-mono text-danger">{{ greedy.unmet_demand }} m³</div>
+                    </div>
+                    <div class="col-6">
+                        <span class="text-muted fs-xs">{{ t('th_irrigation_cost') }}:</span>
+                        <div class="fw-semibold font-mono text-muted">₹{{ "{:,.2f}".format(greedy.total_cost) }}</div>
+                    </div>
+                    <div class="col-6">
+                        <span class="text-muted fs-xs">{{ t('th_net_return') }}:</span>
+                        <div class="fw-bold font-mono text-success">₹{{ "{:,.2f}".format(greedy.net_return) }}</div>
+                    </div>
+                    <div class="col-6">
+                        <span class="text-muted fs-xs">{{ t('kpi_water_utilization') }}:</span>
+                        <div class="font-mono">{{ greedy.water_utilization_pct }}%</div>
+                    </div>
+                    <div class="col-6">
+                        <span class="text-muted fs-xs">{{ t('th_fairness') }}:</span>
+                        <div class="font-mono">{{ greedy.fairness_index }}</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Dynamic Programming Card -->
+        <div class="col-lg-4">
+            <div class="card p-3 h-100 shadow-sm border-top border-4" style="border-top-color: #0ea5e9 !important;">
+                <div class="d-flex justify-content-between align-items-start mb-2">
+                    <div>
+                        <span class="badge badge-dp px-2 py-1 rounded">{{ t('alg_dp') }}</span>
+                        <h4 class="fw-bold text-dark mt-2 mb-0">₹{{ "{:,.2f}".format(dp.total_benefit) }}</h4>
+                        <span class="text-muted fs-xs">{{ t('kpi_net_return') }}</span>
+                    </div>
+                    <span class="badge bg-light text-muted border font-mono fs-xs">{{ dp.execution_time_ms }} ms</span>
+                </div>
+                <hr class="my-2 text-muted">
+                <div class="row g-2 small">
+                    <div class="col-6">
+                        <span class="text-muted fs-xs">{{ t('th_allocated') }}:</span>
+                        <div class="fw-semibold font-mono">{{ dp.total_allocated }} m³</div>
+                    </div>
+                    <div class="col-6">
+                        <span class="text-muted fs-xs">{{ t('unmet') }}:</span>
+                        <div class="fw-semibold font-mono text-danger">{{ dp.unmet_demand }} m³</div>
+                    </div>
+                    <div class="col-6">
+                        <span class="text-muted fs-xs">{{ t('th_irrigation_cost') }}:</span>
+                        <div class="fw-semibold font-mono text-muted">₹{{ "{:,.2f}".format(dp.total_cost) }}</div>
+                    </div>
+                    <div class="col-6">
+                        <span class="text-muted fs-xs">{{ t('th_net_return') }}:</span>
+                        <div class="fw-bold font-mono text-success">₹{{ "{:,.2f}".format(dp.net_return) }}</div>
+                    </div>
+                    <div class="col-6">
+                        <span class="text-muted fs-xs">{{ t('kpi_water_utilization') }}:</span>
+                        <div class="font-mono">{{ dp.water_utilization_pct }}%</div>
+                    </div>
+                    <div class="col-6">
+                        <span class="text-muted fs-xs">{{ t('th_fairness') }}:</span>
+                        <div class="font-mono">{{ dp.fairness_index }}</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Hybrid Card -->
+        <div class="col-lg-4">
+            <div class="card p-3 h-100 shadow-sm border-top border-4" style="border-top-color: #10b981 !important;">
+                <div class="d-flex justify-content-between align-items-start mb-2">
+                    <div>
+                        <span class="badge badge-hybrid px-2 py-1 rounded">{{ t('alg_hybrid') }}</span>
+                        <h4 class="fw-bold text-emerald mt-2 mb-0">₹{{ "{:,.2f}".format(hybrid.total_benefit) }}</h4>
+                        <span class="text-muted fs-xs">{{ t('kpi_net_return') }}</span>
+                    </div>
+                    <span class="badge bg-emerald text-white font-mono fs-xs">{{ t('proposed_tag') }}</span>
+                </div>
+                <hr class="my-2 text-muted">
+                <div class="row g-2 small">
+                    <div class="col-6">
+                        <span class="text-muted fs-xs">{{ t('th_allocated') }}:</span>
+                        <div class="fw-semibold font-mono">{{ hybrid.total_allocated }} m³</div>
+                    </div>
+                    <div class="col-6">
+                        <span class="text-muted fs-xs">{{ t('unmet') }}:</span>
+                        <div class="fw-semibold font-mono text-danger">{{ hybrid.unmet_demand }} m³</div>
+                    </div>
+                    <div class="col-6">
+                        <span class="text-muted fs-xs">{{ t('th_irrigation_cost') }}:</span>
+                        <div class="fw-semibold font-mono text-muted">₹{{ "{:,.2f}".format(hybrid.total_cost) }}</div>
+                    </div>
+                    <div class="col-6">
+                        <span class="text-muted fs-xs">{{ t('th_net_return') }}:</span>
+                        <div class="fw-bold font-mono text-success">₹{{ "{:,.2f}".format(hybrid.net_return) }}</div>
+                    </div>
+                    <div class="col-6">
+                        <span class="text-muted fs-xs">{{ t('kpi_water_utilization') }}:</span>
+                        <div class="font-mono">{{ hybrid.water_utilization_pct }}%</div>
+                    </div>
+                    <div class="col-6">
+                        <span class="text-muted fs-xs">{{ t('th_fairness') }}:</span>
+                        <div class="font-mono fw-bold text-emerald">{{ hybrid.fairness_index }}</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Optimization Insights Alert -->
+    <div class="alert alert-success border-success-subtle bg-emerald-subtle d-flex align-items-center gap-3 p-3 mb-4 rounded-3">
+        <i class="bi bi-lightbulb-fill text-emerald fs-3"></i>
+        <div>
+            <h6 class="fw-bold text-dark mb-1">Algorithmic Optimization Insights</h6>
+            <ul class="mb-0 small ps-3 text-dark">
+                {% for note in comparison.insights %}
+                <li>{{ note }}</li>
+                {% endfor %}
+            </ul>
+        </div>
+    </div>
+
+    <!-- Per-Plot Allocation Breakdown Table -->
+    <div class="card border-0 shadow-sm p-4 mb-4">
+        <div class="d-flex justify-content-between align-items-center mb-3">
+            <h5 class="fw-bold text-dark mb-0 d-flex align-items-center gap-2">
+                <i class="bi bi-diagram-3-fill text-primary"></i>
+                Detailed Plot-by-Plot Water Allocations (Hybrid Strategy)
+            </h5>
+            <span class="badge bg-light text-secondary border font-mono">Budget: {{ farm.water_budget }} m³</span>
+        </div>
+        <div class="table-responsive">
+            <table class="table table-custom table-hover align-middle mb-0">
+                <thead>
+                    <tr>
+                        <th>{{ t('form_plot_name') }}</th>
+                        <th>{{ t('th_crop') }}</th>
+                        <th>{{ t('th_demand_m3') }}</th>
+                        <th>{{ t('th_allocated_m3') }}</th>
+                        <th>{{ t('th_unmet_m3') }}</th>
+                        <th>{{ t('th_coverage_pct') }}</th>
+                        <th>{{ t('th_yield_pct') }}</th>
+                        <th>{{ t('kpi_net_return') }} (₹)</th>
+                        <th>{{ t('th_irrigation_cost') }} (₹)</th>
+                        <th>{{ t('th_net_return') }} (₹)</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for item in hybrid.allocations %}
+                    <tr>
+                        <td class="fw-bold text-dark">{{ item.plot_name }}</td>
+                        <td><span class="badge bg-light text-dark border">{{ item.crop_type }}</span></td>
+                        <td class="font-mono">{{ item.demand }} m³</td>
+                        <td class="font-mono fw-bold text-emerald">{{ item.allocated_water }} m³</td>
+                        <td class="font-mono {% if item.unmet_demand > 0 %}text-danger fw-semibold{% else %}text-muted{% endif %}">
+                            {{ item.unmet_demand }} m³
+                        </td>
+                        <td style="min-width: 130px;">
+                            <div class="d-flex align-items-center gap-2">
+                                <div class="progress flex-grow-1 progress-thin">
+                                    <div class="progress-bar {% if item.coverage_pct >= 90 %}bg-success{% elif item.coverage_pct >= 50 %}bg-info{% elif item.coverage_pct > 0 %}bg-warning{% else %}bg-danger{% endif %}"
+                                         style="width: {{ item.coverage_pct }}%"></div>
+                                </div>
+                                <span class="font-mono fs-xs">{{ item.coverage_pct }}%</span>
+                            </div>
+                        </td>
+                        <td class="font-mono fw-semibold {% if item.yield_preservation_pct >= 85 %}text-success{% else %}text-secondary{% endif %}">
+                            {{ item.yield_preservation_pct }}%
+                        </td>
+                        <td class="font-mono text-success fw-bold">₹{{ "{:,.2f}".format(item.preserved_value) }}</td>
+                        <td class="font-mono text-muted">₹{{ "{:,.2f}".format(item.cost) }}</td>
+                        <td class="font-mono fw-bold text-dark">₹{{ "{:,.2f}".format(item.preserved_value - item.cost) }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Actionable Hourly Irrigation Pump Schedule -->
+    <div class="card border-0 shadow-sm p-4 mb-4">
+        <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-2 mb-3">
+            <div>
+                <h5 class="fw-bold text-dark mb-1 d-flex align-items-center gap-2">
+                    <i class="bi bi-clock-history text-emerald"></i>
+                    {{ t('schedule_title') }}
+                </h5>
+                <p class="text-muted small mb-0">Night/early-morning schedule respecting soil infiltration rate & off-peak power tariffs</p>
+            </div>
+            <span class="badge bg-light text-secondary border font-mono">{{ t('pump_capacity') }}: {{ farm.pump_capacity }} m³/h</span>
+        </div>
+        <div class="table-responsive">
+            <table class="table table-custom table-hover align-middle mb-0">
+                <thead>
+                    <tr>
+                        <th>Irrigation Window</th>
+                        <th>Plot Assignment</th>
+                        <th>Crop</th>
+                        <th>Water Volume</th>
+                        <th>Flow Rate</th>
+                        <th>Duration</th>
+                        <th>Tariff Window</th>
+                        <th>Cost Breakdown</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for s in hybrid.schedule %}
+                    <tr>
+                        <td class="font-mono fw-bold text-dark">
+                            <i class="bi bi-play-circle-fill text-emerald me-1"></i> {{ s.start_time_str }} &rarr; {{ s.end_time_str }}
+                        </td>
+                        <td class="fw-semibold">{{ s.plot_name }}</td>
+                        <td><span class="badge bg-light text-dark border">{{ s.crop_type }}</span></td>
+                        <td class="font-mono fw-bold text-emerald">{{ s.water_volume_m3 }} m³</td>
+                        <td class="font-mono">{{ s.flow_rate_m3h }} m³/h</td>
+                        <td class="font-mono">{{ s.duration_hours }} hrs</td>
+                        <td>
+                            <span class="badge {% if 'Off-Peak' in s.tariff_period %}bg-success-subtle text-success{% else %}bg-warning-subtle text-warning{% endif %}">
+                                {{ s.tariff_period }}
+                            </span>
+                        </td>
+                        <td class="font-mono fs-xs text-muted">
+                            Energy: ₹{{ s.energy_cost }} | Labor: ₹{{ s.labor_cost }}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Historical Runs Audit Log & Exports -->
+    <div class="card border-0 shadow-sm p-4">
+        <div class="d-flex justify-content-between align-items-center mb-3">
+            <h5 class="fw-bold text-dark mb-0 d-flex align-items-center gap-2">
+                <i class="bi bi-journal-text text-muted"></i>
+                {{ t('history_audit_title') }}
+            </h5>
+            <span class="badge bg-light text-muted border font-mono">SQLite Stored</span>
+        </div>
+        {% if history %}
+        <div class="table-responsive">
+            <table class="table table-custom table-hover align-middle mb-0">
+                <thead>
+                    <tr>
+                        <th>{{ t('th_run_id') }}</th>
+                        <th>{{ t('th_timestamp') }}</th>
+                        <th>{{ t('th_algorithm') }}</th>
+                        <th>{{ t('water_budget') }}</th>
+                        <th>{{ t('th_allocated') }}</th>
+                        <th>{{ t('th_net_return') }}</th>
+                        <th>{{ t('th_fairness') }}</th>
+                        <th>{{ t('th_export') }}</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for r in history %}
+                    <tr>
+                        <td class="font-mono fw-bold">#{{ r.id }}</td>
+                        <td class="small text-muted">{{ r.created_at }}</td>
+                        <td>
+                            <span class="badge {% if 'Hybrid' in r.algorithm %}badge-hybrid{% elif 'Dynamic' in r.algorithm %}badge-dp{% else %}badge-greedy{% endif %}">
+                                {{ r.algorithm }}
+                            </span>
+                        </td>
+                        <td class="font-mono">{{ r.available_water }} m³</td>
+                        <td class="font-mono">{{ r.total_allocated }} m³</td>
+                        <td class="font-mono fw-bold text-success">₹{{ "{:,.2f}".format(r.net_return) }}</td>
+                        <td class="font-mono">{{ r.fairness_index }}</td>
+                        <td>
+                            <div class="btn-group btn-group-sm">
+                                <a href="{{ url_for('reports.export_run_report', run_id=r.id, format='csv') }}" class="btn btn-outline-secondary btn-sm font-mono py-0">CSV</a>
+                                <a href="{{ url_for('reports.export_run_report', run_id=r.id, format='json') }}" class="btn btn-outline-secondary btn-sm font-mono py-0">JSON</a>
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <p class="text-muted small mb-0 py-2">No historical runs saved in SQLite audit log yet.</p>
+        {% endif %}
+    </div>
+
+    {% endif %}
+
+</div>
+{% endblock %}
